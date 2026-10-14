@@ -12,18 +12,18 @@ const objectPath = '/org/gnome/shell/extensions/RoundedWindowCorners';
 
 /** Open the window picker and select a window. */
 export function pick() {
-    connection.call(
-        busName,
-        objectPath,
-        interfaceName,
-        'pick',
-        null,
-        null,
-        Gio.DBusCallFlags.NO_AUTO_START,
-        -1,
-        null,
-        null,
-    );
+  connection.call(
+    busName,
+    objectPath,
+    interfaceName,
+    'pick',
+    null,
+    null,
+    Gio.DBusCallFlags.NO_AUTO_START,
+    -1,
+    null,
+    null,
+  );
 }
 
 /**
@@ -33,17 +33,17 @@ export function pick() {
  * @param callback - The function to execute when the window is picked.
  */
 export function onPicked(callback: (wmInstanceClass: string) => void) {
-    const id = connection.signal_subscribe(
-        busName,
-        interfaceName,
-        'picked',
-        objectPath,
-        null,
-        Gio.DBusSignalFlags.NONE,
-        (_conn, _sender, _objectPath, _iface, _signal, params) => {
-            const val = params.get_child_value(0);
-            callback(val.get_string()[0]);
-            connection.signal_unsubscribe(id);
-        },
-    );
+  const id = connection.signal_subscribe(
+    busName,
+    interfaceName,
+    'picked',
+    objectPath,
+    null,
+    Gio.DBusSignalFlags.NONE,
+    (_conn, _sender, _objectPath, _iface, _signal, params) => {
+      const val = params.get_child_value(0);
+      callback(val.get_string()[0]);
+      connection.signal_unsubscribe(id);
+    },
+  );
 }

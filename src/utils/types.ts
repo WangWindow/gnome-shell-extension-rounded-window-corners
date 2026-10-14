@@ -6,42 +6,42 @@ import type St from 'gi://St';
 
 /** Bounds of rounded corners  */
 export type Bounds = {
-    x1: number;
-    y1: number;
-    x2: number;
-    y2: number;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
 };
 
 /** Settings for corner rounding. */
 export type RoundedCornerSettings = {
-    keepRoundedCorners: {
-        maximized: boolean;
-        fullscreen: boolean;
-    };
-    borderRadius: number;
-    smoothing: number;
-    padding: {
-        left: number;
-        right: number;
-        top: number;
-        bottom: number;
-    };
-    borderColor: [number, number, number, number];
-    enabled: boolean;
+  keepRoundedCorners: {
+    maximized: boolean;
+    fullscreen: boolean;
+  };
+  borderRadius: number;
+  smoothing: number;
+  padding: {
+    left: number;
+    right: number;
+    top: number;
+    bottom: number;
+  };
+  borderColor: [number, number, number, number];
+  enabled: boolean;
 };
 
 /** Rounded corner settings exceptions for specific windows. */
 export type CustomRoundedCornerSettings = {
-    [wmClass: string]: RoundedCornerSettings;
+  [wmClass: string]: RoundedCornerSettings;
 };
 
 /** Window shadow properties. */
 export type BoxShadow = {
-    opacity: number;
-    spreadRadius: number;
-    blurOffset: number;
-    verticalOffset: number;
-    horizontalOffset: number;
+  opacity: number;
+  spreadRadius: number;
+  blurOffset: number;
+  verticalOffset: number;
+  horizontalOffset: number;
 };
 
 /**
@@ -50,13 +50,13 @@ export type BoxShadow = {
  * This type is needed to store extra custom properties on a window actor.
  */
 export type RoundedWindowActor = Meta.WindowActor & {
-    metaWindow: Meta.Window;
-    rwcCustomData?: {
-        shadow: St.Bin;
-        unminimizedTimeoutId: number;
-        propertyBindings: GObject.Binding[];
-    };
-    rwcLock?: Promise<void>;
+  metaWindow: Meta.Window;
+  rwcCustomData?: {
+    shadow: St.Bin;
+    unminimizedTimeoutId: number;
+    propertyBindings: GObject.Binding[];
+  };
+  rwcLock?: Promise<void>;
 };
 
 /**
@@ -66,7 +66,7 @@ export type RoundedWindowActor = Meta.WindowActor & {
  * @returns Whether the actor has a `metaWindow`.
  */
 export function hasMetaWindow(
-    actor: Meta.WindowActor,
+  actor: Meta.WindowActor,
 ): actor is RoundedWindowActor {
-    return actor.metaWindow !== null;
+  return actor.metaWindow !== null;
 }

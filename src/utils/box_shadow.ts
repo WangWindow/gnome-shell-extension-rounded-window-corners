@@ -3,7 +3,7 @@
  * {@link BoxShadow} objects into CSS code for the shadow.
  */
 
-import type {BoxShadow} from './types.js';
+import type { BoxShadow } from './types.js';
 
 /**
  * Generate a CSS style for a box shadow from the provided {@link BoxShadow}
@@ -13,7 +13,7 @@ import type {BoxShadow} from './types.js';
  * @returns The box-shadow CSS string.
  */
 export function boxShadowCss(shadow: BoxShadow) {
-    return `box-shadow: ${shadow.horizontalOffset}px
+  return `box-shadow: ${shadow.horizontalOffset}px
           ${shadow.verticalOffset}px
           ${shadow.blurOffset}px
           ${shadow.spreadRadius}px

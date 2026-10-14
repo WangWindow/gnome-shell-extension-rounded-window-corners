@@ -7,9 +7,9 @@ import type GObject from 'gi://GObject';
 import type Meta from 'gi://Meta';
 import type Shell from 'gi://Shell';
 
-import {logDebug} from '../utils/log.js';
-import {prefs} from '../utils/settings.js';
-import {hasMetaWindow, type RoundedWindowActor} from '../utils/types.js';
+import { logDebug } from '../utils/log.js';
+import { prefs } from '../utils/settings.js';
+import { hasMetaWindow, type RoundedWindowActor } from '../utils/types.js';
 import * as handlers from './event_handlers.js';
 
 /**
@@ -21,69 +21,69 @@ import * as handlers from './event_handlers.js';
  * to matching handlers on each effect.
  */
 export function enableEffect() {
-    // Update the effect when settings are changed.
-    connect(prefs, 'changed', handlers.onSettingsChanged);
+  // Update the effect when settings are changed.
+  connect(prefs, 'changed', handlers.onSettingsChanged);
 
-    const wm = global.windowManager;
+  const wm = global.windowManager;
 
-    // Add the effect to all windows when the extension is enabled.
-    const windowActors = global.get_window_actors();
-    logDebug(`Initial window count: ${windowActors.length}`);
-    for (const actor of windowActors) {
-        if (hasMetaWindow(actor)) {
-            applyEffectTo(actor);
-        }
+  // Add the effect to all windows when the extension is enabled.
+  const windowActors = global.get_window_actors();
+  logDebug(`Initial window count: ${windowActors.length}`);
+  for (const actor of windowActors) {
+    if (hasMetaWindow(actor)) {
+      applyEffectTo(actor);
     }
+  }
 
-    // Add the effect to new windows when they are opened.
-    connect(
-        global.display,
-        'window-created',
-        (_: Meta.Display, win: Meta.Window) => {
-            const actor: RoundedWindowActor = win.get_compositor_private();
+  // Add the effect to new windows when they are opened.
+  connect(
+    global.display,
+    'window-created',
+    (_: Meta.Display, win: Meta.Window) => {
+      const actor: RoundedWindowActor = win.get_compositor_private();
 
-            // If wm_class_instance of Meta.Window is null, wait for it to be
-            // set before applying the effect.
-            if (win?.wmClass === null) {
-                const notifyId = win.connect('notify::wm-class', () => {
-                    applyEffectTo(actor);
-                    win.disconnect(notifyId);
-                });
-            } else {
-                applyEffectTo(actor);
-            }
-        },
-    );
+      // If wm_class_instance of Meta.Window is null, wait for it to be
+      // set before applying the effect.
+      if (win?.wmClass === null) {
+        const notifyId = win.connect('notify::wm-class', () => {
+          applyEffectTo(actor);
+          win.disconnect(notifyId);
+        });
+      } else {
+        applyEffectTo(actor);
+      }
+    },
+  );
 
-    // Window minimized.
-    connect(wm, 'minimize', (_: Shell.WM, actor: Meta.WindowActor) => {
-        if (hasMetaWindow(actor)) handlers.onMinimize(actor);
-    });
+  // Window minimized.
+  connect(wm, 'minimize', (_: Shell.WM, actor: Meta.WindowActor) => {
+    if (hasMetaWindow(actor)) handlers.onMinimize(actor);
+  });
 
-    // Window unminimized.
-    connect(wm, 'unminimize', (_: Shell.WM, actor: Meta.WindowActor) => {
-        if (hasMetaWindow(actor)) handlers.onUnminimize(actor);
-    });
+  // Window unminimized.
+  connect(wm, 'unminimize', (_: Shell.WM, actor: Meta.WindowActor) => {
+    if (hasMetaWindow(actor)) handlers.onUnminimize(actor);
+  });
 
-    // When closing the window, remove the effect from it.
-    connect(wm, 'destroy', (_: Shell.WM, actor: Meta.WindowActor) =>
-        removeEffectFrom(actor),
-    );
+  // When closing the window, remove the effect from it.
+  connect(wm, 'destroy', (_: Shell.WM, actor: Meta.WindowActor) =>
+    removeEffectFrom(actor),
+  );
 
-    // When windows are restacked, the order of shadow actors as well.
-    connect(global.display, 'restacked', handlers.onRestacked);
+  // When windows are restacked, the order of shadow actors as well.
+  connect(global.display, 'restacked', handlers.onRestacked);
 }
 
 /** Disable the effect for all windows. */
 export function disableEffect() {
-    for (const actor of global.get_window_actors()) {
-        removeEffectFrom(actor);
-    }
+  for (const actor of global.get_window_actors()) {
+    removeEffectFrom(actor);
+  }
 
-    disconnectAll();
+  disconnectAll();
 }
 
-const connections: {object: GObject.Object; id: number}[] = [];
+const connections: { object: GObject.Object; id: number }[] = [];
 
 /**
  * Connect a callback to an object signal and add it to the list of all
@@ -95,15 +95,15 @@ const connections: {object: GObject.Object; id: number}[] = [];
  * @param callback - The function to connect to the signal.
  */
 function connect(
-    object: GObject.Object,
-    signal: string,
-    // biome-ignore lint/suspicious/noExplicitAny: Signal callbacks can have any return args and return types.
-    callback: (...args: any[]) => any,
+  object: GObject.Object,
+  signal: string,
+  // biome-ignore lint/suspicious/noExplicitAny: Signal callbacks can have any return args and return types.
+  callback: (...args: any[]) => any,
 ) {
-    connections.push({
-        object,
-        id: object.connect(signal, callback),
-    });
+  connections.push({
+    object,
+    id: object.connect(signal, callback),
+  });
 }
 
 /**
@@ -114,19 +114,19 @@ function connect(
  * @param object - If object is provided, only disconnect signals from it.
  */
 function disconnectAll(object?: GObject.Object | null) {
-    if (object === null) return;
-    let i = connections.length;
-    while (i--) {
-        const connection = connections[i];
-        if (object === undefined || connection.object === object) {
-            connection.object.disconnect(connection.id);
-            // Over time as windows open and close, connections would grow
-            // indefinitely with stale entries pointing to dead window objects
-            // Release the reference to the GObject so it can be garbage
-            // collected after the window is closed, preventing a memory leak.
-            connections.splice(i, 1);
-        }
+  if (object === null) return;
+  let i = connections.length;
+  while (i--) {
+    const connection = connections[i];
+    if (object === undefined || connection.object === object) {
+      connection.object.disconnect(connection.id);
+      // Over time as windows open and close, connections would grow
+      // indefinitely with stale entries pointing to dead window objects
+      // Release the reference to the GObject so it can be garbage
+      // collected after the window is closed, preventing a memory leak.
+      connections.splice(i, 1);
     }
+  }
 }
 
 /**
@@ -139,63 +139,63 @@ function disconnectAll(object?: GObject.Object | null) {
  * @param actor - The window actor to apply the effect to.
  */
 function applyEffectTo(actor: RoundedWindowActor) {
-    // In wayland sessions, the surface actor of XWayland clients is sometimes
-    // not ready when the window is created. In this case, we wait until it is
-    // ready before applying the effect.
-    if (!actor.firstChild) {
-        const id = actor.connect('notify::first-child', () => {
-            applyEffectTo(actor);
-            actor.disconnect(id);
-        });
+  // In wayland sessions, the surface actor of XWayland clients is sometimes
+  // not ready when the window is created. In this case, we wait until it is
+  // ready before applying the effect.
+  if (!actor.firstChild) {
+    const id = actor.connect('notify::first-child', () => {
+      applyEffectTo(actor);
+      actor.disconnect(id);
+    });
 
-        return;
+    return;
+  }
+
+  const texture = actor.get_texture();
+  if (!texture) {
+    return;
+  }
+
+  // Window resized.
+  //
+  // The signal has to be connected both to the actor and the texture. Why is
+  // that? I have no idea. But without that, weird bugs can happen. For
+  // example, when using Dash to Dock, all opened windows will be invisible
+  // *unless they are pinned in the dock*. So yeah, GNOME is magic.
+  connect(actor, 'notify::size', () => {
+    if (actor.metaWindow) {
+      handlers.onSizeChanged(actor);
     }
-
-    const texture = actor.get_texture();
-    if (!texture) {
-        return;
+  });
+  connect(texture, 'size-changed', () => {
+    if (actor.metaWindow) {
+      handlers.onSizeChanged(actor);
     }
+  });
 
-    // Window resized.
-    //
-    // The signal has to be connected both to the actor and the texture. Why is
-    // that? I have no idea. But without that, weird bugs can happen. For
-    // example, when using Dash to Dock, all opened windows will be invisible
-    // *unless they are pinned in the dock*. So yeah, GNOME is magic.
-    connect(actor, 'notify::size', () => {
-        if (actor.metaWindow) {
-            handlers.onSizeChanged(actor);
-        }
-    });
-    connect(texture, 'size-changed', () => {
-        if (actor.metaWindow) {
-            handlers.onSizeChanged(actor);
-        }
-    });
+  // Get notified about fullscreen explicitly, since a window must not change in
+  // size to go fullscreen
+  connect(actor.metaWindow, 'notify::fullscreen', () => {
+    if (actor.metaWindow) {
+      handlers.onSizeChanged(actor);
+    }
+  });
 
-    // Get notified about fullscreen explicitly, since a window must not change in
-    // size to go fullscreen
-    connect(actor.metaWindow, 'notify::fullscreen', () => {
-        if (actor.metaWindow) {
-            handlers.onSizeChanged(actor);
-        }
-    });
+  // Window focus changed.
+  connect(actor.metaWindow, 'notify::appears-focused', () => {
+    if (actor.metaWindow) {
+      handlers.onFocusChanged(actor);
+    }
+  });
 
-    // Window focus changed.
-    connect(actor.metaWindow, 'notify::appears-focused', () => {
-        if (actor.metaWindow) {
-            handlers.onFocusChanged(actor);
-        }
-    });
+  // Workspace or monitor of the window changed.
+  connect(actor.metaWindow, 'workspace-changed', () => {
+    if (actor.metaWindow) {
+      handlers.onFocusChanged(actor);
+    }
+  });
 
-    // Workspace or monitor of the window changed.
-    connect(actor.metaWindow, 'workspace-changed', () => {
-        if (actor.metaWindow) {
-            handlers.onFocusChanged(actor);
-        }
-    });
-
-    handlers.onAddEffect(actor);
+  handlers.onAddEffect(actor);
 }
 
 /**
@@ -204,15 +204,15 @@ function applyEffectTo(actor: RoundedWindowActor) {
  * @param actor - The window actor to remove the effect from.
  */
 function removeEffectFrom(actor: Meta.WindowActor) {
-    disconnectAll(actor);
-    disconnectAll(actor.metaWindow);
+  disconnectAll(actor);
+  disconnectAll(actor.metaWindow);
 
-    const texture = actor.get_texture();
-    if (texture) {
-        disconnectAll(texture);
-    }
+  const texture = actor.get_texture();
+  if (texture) {
+    disconnectAll(texture);
+  }
 
-    if (hasMetaWindow(actor)) {
-        handlers.onRemoveEffect(actor);
-    }
+  if (hasMetaWindow(actor)) {
+    handlers.onRemoveEffect(actor);
+  }
 }

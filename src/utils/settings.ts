@@ -7,28 +7,28 @@
 import type Gio from 'gi://Gio';
 import type GObject from 'gi://GObject';
 import type {
-    BoxShadow,
-    CustomRoundedCornerSettings,
-    RoundedCornerSettings,
+  BoxShadow,
+  CustomRoundedCornerSettings,
+  RoundedCornerSettings,
 } from './types.js';
 
 import GLib from 'gi://GLib';
 
 /** Mapping of schema keys to the JS representation of their type. */
 type Schema = {
-    'settings-version': number;
-    blacklist: string[];
-    whitelist: boolean;
-    'skip-libadwaita-app': boolean;
-    'skip-libhandy-app': boolean;
-    'border-width': number;
-    'global-rounded-corner-settings': RoundedCornerSettings;
-    'custom-rounded-corner-settings': CustomRoundedCornerSettings;
-    'focused-shadow': BoxShadow;
-    'unfocused-shadow': BoxShadow;
-    'keep-shadow-for-maximized-fullscreen': boolean;
-    'debug-mode': boolean;
-    'tweak-kitty-terminal': boolean;
+  'settings-version': number;
+  blacklist: string[];
+  whitelist: boolean;
+  'skip-libadwaita-app': boolean;
+  'skip-libhandy-app': boolean;
+  'border-width': number;
+  'global-rounded-corner-settings': RoundedCornerSettings;
+  'custom-rounded-corner-settings': CustomRoundedCornerSettings;
+  'focused-shadow': BoxShadow;
+  'unfocused-shadow': BoxShadow;
+  'keep-shadow-for-maximized-fullscreen': boolean;
+  'debug-mode': boolean;
+  'tweak-kitty-terminal': boolean;
 };
 
 /** All existing schema keys. */
@@ -36,19 +36,19 @@ export type SchemaKey = keyof Schema;
 
 /** Mapping of schema keys to their GLib Variant type string */
 export const Schema = {
-    'settings-version': 'u',
-    blacklist: 'as',
-    whitelist: 'b',
-    'skip-libadwaita-app': 'b',
-    'skip-libhandy-app': 'b',
-    'border-width': 'i',
-    'global-rounded-corner-settings': 'a{sv}',
-    'custom-rounded-corner-settings': 'a{sv}',
-    'focused-shadow': 'a{si}',
-    'unfocused-shadow': 'a{si}',
-    'keep-shadow-for-maximized-fullscreen': 'b',
-    'debug-mode': 'b',
-    'tweak-kitty-terminal': 'b',
+  'settings-version': 'u',
+  blacklist: 'as',
+  whitelist: 'b',
+  'skip-libadwaita-app': 'b',
+  'skip-libhandy-app': 'b',
+  'border-width': 'i',
+  'global-rounded-corner-settings': 'a{sv}',
+  'custom-rounded-corner-settings': 'a{sv}',
+  'focused-shadow': 'a{si}',
+  'unfocused-shadow': 'a{si}',
+  'keep-shadow-for-maximized-fullscreen': 'b',
+  'debug-mode': 'b',
+  'tweak-kitty-terminal': 'b',
 };
 
 /** The raw GSettings object for direct manipulation. */
@@ -60,13 +60,13 @@ export let prefs: Gio.Settings;
  * @param gSettings - GSettings to initialize the prefs with.
  */
 export function initPrefs(gSettings: Gio.Settings) {
-    resetOutdated(gSettings);
-    prefs = gSettings;
+  resetOutdated(gSettings);
+  prefs = gSettings;
 }
 
 /** Delete the {@link prefs} object for garbage collection. */
 export function uninitPrefs() {
-    (prefs as Gio.Settings | null) = null;
+  (prefs as Gio.Settings | null) = null;
 }
 
 /**
@@ -77,7 +77,7 @@ export function uninitPrefs() {
  * @returns The value of the preference.
  */
 export function getPref<K extends SchemaKey>(key: K) {
-    return prefs.get_value(key).recursiveUnpack() as Schema[K];
+  return prefs.get_value(key).recursiveUnpack() as Schema[K];
 }
 
 /**
@@ -87,32 +87,30 @@ export function getPref<K extends SchemaKey>(key: K) {
  * @param value - The value to set the preference to.
  */
 export function setPref<K extends SchemaKey>(key: K, value: Schema[K]) {
-    let variant: GLib.Variant;
+  let variant: GLib.Variant;
 
-    if (key === 'global-rounded-corner-settings') {
-        variant = packRoundedCornerSettings(value as RoundedCornerSettings);
-    } else if (key === 'custom-rounded-corner-settings') {
-        variant = packCustomRoundedCornerSettings(
-            value as CustomRoundedCornerSettings,
-        );
-    } else {
-        // @ts-expect-error
-        // TypeScript can't figure out that the value will always match the glib schema type here
-        variant = new GLib.Variant(Schema[key], value);
-    }
+  if (key === 'global-rounded-corner-settings') {
+    variant = packRoundedCornerSettings(value as RoundedCornerSettings);
+  } else if (key === 'custom-rounded-corner-settings') {
+    variant = packCustomRoundedCornerSettings(
+      value as CustomRoundedCornerSettings,
+    );
+  } else {
+    // @ts-expect-error: The generic key and value types cannot be correlated here.
+    variant = new GLib.Variant(Schema[key], value);
+  }
 
-    prefs.set_value(key, variant);
+  prefs.set_value(key, variant);
 }
 
 /** A simple type-checked wrapper around {@link prefs.bind} */
 export function bindPref(
-    key: SchemaKey,
-    object: GObject.Object,
-    property: string,
-    flags: Gio.SettingsBindFlags,
+  key: SchemaKey,
+  object: GObject.Object,
+  property: string,
+  flags: Gio.SettingsBindFlags,
 ) {
-    // @ts-expect-error: TODO https://github.com/gjsify/ts-for-gir/issues/431
-    prefs.bind(key, object, property, flags);
+  prefs.bind(key, object, property, flags);
 }
 
 /**
@@ -123,48 +121,48 @@ export function bindPref(
  */
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: The function is inherently a huge if block.
 function resetOutdated(prefs: Gio.Settings) {
-    const lastVersion = 9;
-    const prefsCurrentVersion = prefs
-        .get_user_value('settings-version')
-        ?.recursiveUnpack() as number | undefined;
-    const currentVersion = prefsCurrentVersion ?? 0;
+  const lastVersion = 9;
+  const prefsCurrentVersion = prefs
+    .get_user_value('settings-version')
+    ?.recursiveUnpack() as number | undefined;
+  const currentVersion = prefsCurrentVersion ?? 0;
 
-    if (currentVersion < lastVersion) {
-        if (currentVersion < 7) {
-            if (prefs.list_keys().includes('black-list')) {
-                prefs.reset('black-list');
-            }
-            prefs.reset('global-rounded-corner-settings');
-            prefs.reset('custom-rounded-corner-settings');
-            if (prefs.list_keys().includes('border-color')) {
-                prefs.reset('border-color');
-            }
-            prefs.reset('focused-shadow');
-            prefs.reset('unfocused-shadow');
-        }
-
-        if (currentVersion < 8) {
-            const roundedCornerSettings = prefs
-                .get_value('global-rounded-corner-settings')
-                .recursiveUnpack() as RoundedCornerSettings;
-            if (roundedCornerSettings.borderRadius === 12) {
-                roundedCornerSettings.borderRadius = 15;
-                prefs.set_value(
-                    'global-rounded-corner-settings',
-                    packRoundedCornerSettings(roundedCornerSettings),
-                );
-            }
-        }
-
-        if (currentVersion < 9) {
-            // biome-ignore lint/style/useCollapsedIf: Match the format of other checks
-            if (prefs.list_keys().includes('enable-preferences-entry')) {
-                prefs.reset('enable-preferences-entry');
-            }
-        }
-
-        prefs.set_uint('settings-version', lastVersion);
+  if (currentVersion < lastVersion) {
+    if (currentVersion < 7) {
+      if (prefs.list_keys().includes('black-list')) {
+        prefs.reset('black-list');
+      }
+      prefs.reset('global-rounded-corner-settings');
+      prefs.reset('custom-rounded-corner-settings');
+      if (prefs.list_keys().includes('border-color')) {
+        prefs.reset('border-color');
+      }
+      prefs.reset('focused-shadow');
+      prefs.reset('unfocused-shadow');
     }
+
+    if (currentVersion < 8) {
+      const roundedCornerSettings = prefs
+        .get_value('global-rounded-corner-settings')
+        .recursiveUnpack() as RoundedCornerSettings;
+      if (roundedCornerSettings.borderRadius === 12) {
+        roundedCornerSettings.borderRadius = 15;
+        prefs.set_value(
+          'global-rounded-corner-settings',
+          packRoundedCornerSettings(roundedCornerSettings),
+        );
+      }
+    }
+
+    if (currentVersion < 9) {
+      // biome-ignore lint/style/useCollapsedIf: Match the format of other checks
+      if (prefs.list_keys().includes('enable-preferences-entry')) {
+        prefs.reset('enable-preferences-entry');
+      }
+    }
+
+    prefs.set_uint('settings-version', lastVersion);
+  }
 }
 
 /**
@@ -180,26 +178,26 @@ function resetOutdated(prefs: Gio.Settings) {
  * @returns The packed GLib Variant object.
  */
 function packRoundedCornerSettings(settings: RoundedCornerSettings) {
-    const padding = new GLib.Variant('a{su}', settings.padding);
-    const keepRoundedCorners = new GLib.Variant(
-        'a{sb}',
-        settings.keepRoundedCorners,
-    );
-    const borderRadius = GLib.Variant.new_uint32(settings.borderRadius);
-    const smoothing = GLib.Variant.new_double(settings.smoothing);
-    const borderColor = new GLib.Variant('(dddd)', settings.borderColor);
-    const enabled = GLib.Variant.new_boolean(settings.enabled);
+  const padding = new GLib.Variant('a{su}', settings.padding);
+  const keepRoundedCorners = new GLib.Variant(
+    'a{sb}',
+    settings.keepRoundedCorners,
+  );
+  const borderRadius = GLib.Variant.new_uint32(settings.borderRadius);
+  const smoothing = GLib.Variant.new_double(settings.smoothing);
+  const borderColor = new GLib.Variant('(dddd)', settings.borderColor);
+  const enabled = GLib.Variant.new_boolean(settings.enabled);
 
-    const variantObject = {
-        padding,
-        keepRoundedCorners,
-        borderRadius,
-        smoothing,
-        borderColor,
-        enabled,
-    };
+  const variantObject = {
+    padding,
+    keepRoundedCorners,
+    borderRadius,
+    smoothing,
+    borderColor,
+    enabled,
+  };
 
-    return new GLib.Variant('a{sv}', variantObject);
+  return new GLib.Variant('a{sv}', variantObject);
 }
 
 /**
@@ -214,13 +212,13 @@ function packRoundedCornerSettings(settings: RoundedCornerSettings) {
  * @returns The packed GLib Variant object.
  */
 function packCustomRoundedCornerSettings(
-    settings: CustomRoundedCornerSettings,
+  settings: CustomRoundedCornerSettings,
 ) {
-    const packedSettings: Record<string, GLib.Variant<'a{sv}'>> = {};
-    for (const [wmClass, windowSettings] of Object.entries(settings)) {
-        packedSettings[wmClass] = packRoundedCornerSettings(windowSettings);
-    }
+  const packedSettings: Record<string, GLib.Variant<'a{sv}'>> = {};
+  for (const [wmClass, windowSettings] of Object.entries(settings)) {
+    packedSettings[wmClass] = packRoundedCornerSettings(windowSettings);
+  }
 
-    const variant = new GLib.Variant('a{sv}', packedSettings);
-    return variant;
+  const variant = new GLib.Variant('a{sv}', packedSettings);
+  return variant;
 }

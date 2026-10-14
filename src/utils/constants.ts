@@ -14,7 +14,7 @@ export const SHADOW_PADDING = 80;
  * manually clipped
  */
 export const APP_SHADOWS = {
-    kitty: [11, 35, 11, 11],
+  kitty: [11, 35, 11, 11],
 };
 
 /** Name of shadow actor to be added in overview */

@@ -23,18 +23,18 @@ jobs:
           node-version: latest
           cache: 'npm'
 
-      - name: Set up just
-        uses: extractions/setup-just@v2
+      - name: Install build tools
+        run: sudo apt-get update && sudo apt-get install -y gettext libglib2.0-bin
 
-      - name: Install gettext
-        run: sudo apt install gettext
+      - name: Install dependencies
+        run: npm ci
 
       - name: Build the extension
-        run: just build
+        run: npm run build
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: rounded-window-corners@fxgn.shell-extension
+          name: rounded-window-corners@choco2233.shell-extension
           path: _build/
           compression-level: 9
