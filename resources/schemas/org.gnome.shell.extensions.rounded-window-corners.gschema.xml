@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist>
   <schema
-    id="org.gnome.shell.extensions.rounded-window-corners-reborn"
-    path="/org/gnome/shell/extensions/rounded-window-corners-reborn/"
+    id="org.gnome.shell.extensions.rounded-window-corners"
+    path="/org/gnome/shell/extensions/rounded-window-corners/"
   >
 
     <key name="settings-version" type="u">
@@ -106,10 +106,6 @@
 
     <key name="debug-mode" type="b">
       <summary>If enabled, extension will show debug info into journalctl</summary>
-      <default>false</default>
-    </key>
-
-    <key name="tweak-kitty-terminal" type="b">
       <default>false</default>
     </key>
   </schema>

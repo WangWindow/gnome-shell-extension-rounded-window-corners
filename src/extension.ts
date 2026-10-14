@@ -7,16 +7,20 @@ import { WindowPreview } from 'resource:///org/gnome/shell/ui/windowPreview.js';
 import { WorkspaceAnimationController } from 'resource:///org/gnome/shell/ui/workspaceAnimation.js';
 
 import { disableEffect, enableEffect } from './manager/event_manager.js';
-import { addShadowInOverview } from './patch/add_shadow_in_overview.js';
+import {
+  addShadowInOverview,
+  clearOverviewShadowClones,
+} from './patch/add_shadow_in_overview.js';
 import {
   addShadowsInWorkspaceSwitch,
+  clearWorkspaceSwitchShadows,
   removeShadowsAfterWorkspaceSwitch,
 } from './patch/workspace_switch.js';
-import { logDebug } from './utils/log.js';
+import { logDebug, logError } from './utils/log.js';
 import { initPrefs, uninitPrefs } from './utils/settings.js';
 import { WindowPicker } from './window_picker/service.js';
 
-export default class RoundedWindowCornersReborn extends Extension {
+export default class RoundedWindowCorners extends Extension {
   // The extension works by overriding (monkey patching) the code of GNOME
   // Shell's internal methods. InjectionManager is a convenience class that
   // stores references to the original methods and allows to easily restore
@@ -27,7 +31,13 @@ export default class RoundedWindowCornersReborn extends Extension {
 
   #layoutManagerStartupConnection: number | null = null;
 
+  #activationGeneration = 0;
+
   enable() {
+    const activationGeneration = ++this.#activationGeneration;
+    const isCurrentActivation = () =>
+      this.#activationGeneration === activationGeneration;
+
     // Initialize extension preferences
     initPrefs(this.getSettings());
 
@@ -43,12 +53,10 @@ export default class RoundedWindowCornersReborn extends Extension {
       this.#layoutManagerStartupConnection = layoutManager.connect(
         'startup-complete',
         () => {
-          enableEffect();
-
-          layoutManager.disconnect(
-            // biome-ignore lint/style/noNonNullAssertion: Since this happens inside of the connection, there is no way for this to be null.
-            this.#layoutManagerStartupConnection!,
-          );
+          const connection = this.#layoutManagerStartupConnection;
+          this.#layoutManagerStartupConnection = null;
+          if (connection !== null) layoutManager.disconnect(connection);
+          if (isCurrentActivation()) enableEffect();
         },
       );
     } else {
@@ -65,7 +73,9 @@ export default class RoundedWindowCornersReborn extends Extension {
       addWindow =>
         function (window) {
           addWindow.call(this, window);
-          addShadowInOverview(window, this);
+          void addShadowInOverview(window, this, isCurrentActivation).catch(
+            error => logError('Could not add the overview shadow:', error),
+          );
         },
     );
 
@@ -95,12 +105,18 @@ export default class RoundedWindowCornersReborn extends Extension {
   }
 
   disable() {
+    this.#activationGeneration++;
+
+    // Invalidate pending window work before tearing down Shell integrations.
+    disableEffect();
+    clearOverviewShadowClones();
+    clearWorkspaceSwitchShadows();
+
     // Restore patched methods
     this.#injectionManager?.clear();
     this.#injectionManager = null;
 
     this.#windowPicker?.unexport();
-    disableEffect();
 
     // Set all props to null
     this.#windowPicker = null;

@@ -76,23 +76,26 @@ function updateRoundedCornerUniforms(
     borderedAreaRadius = 0.0;
   }
 
+  const actorWidth = effect.actor.get_width();
+  const actorHeight = effect.actor.get_height();
   const pixelStep = [
-    1 / effect.actor.get_width(),
-    1 / effect.actor.get_height(),
+    actorWidth > 0 ? 1 / actorWidth : 0,
+    actorHeight > 0 ? 1 / actorHeight : 0,
   ];
 
   // This is needed for squircle corners
   let exponent = smoothing * 10 + 2;
   let radius = outerRadius * 0.5 * exponent;
-  const maxRadius = Math.min(
-    bounds[3] - bounds[0],
-    bounds[4] - bounds[1],
+  const maxRadius = Math.max(
+    0,
+    Math.min(bounds[2] - bounds[0], bounds[3] - bounds[1]),
   );
   if (radius > maxRadius) {
-    exponent *= maxRadius / radius;
+    if (radius > 0) exponent *= maxRadius / radius;
     radius = maxRadius;
   }
-  borderedAreaRadius *= radius / outerRadius;
+  borderedAreaRadius =
+    outerRadius > 0 ? borderedAreaRadius * (radius / outerRadius) : 0;
 
   setUniforms(
     effect,

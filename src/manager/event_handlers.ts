@@ -15,7 +15,7 @@ import {
   CLIP_SHADOW_EFFECT,
   ROUNDED_CORNERS_EFFECT,
 } from '../utils/constants.js';
-import { logDebug } from '../utils/log.js';
+import { logDebug, logError } from '../utils/log.js';
 import { getPref } from '../utils/settings.js';
 import { hasMetaWindow, type RoundedWindowActor } from '../utils/types.js';
 import {
@@ -37,20 +37,43 @@ import {
 function withActorLock(
   actor: RoundedWindowActor,
   fn: () => Promise<void>,
+  isCurrent: () => boolean,
 ): Promise<void> {
   const prev: Promise<void> | undefined = actor.rwcLock;
-  const next = prev ? prev.then(fn, fn) : fn();
+  const next = prev
+    ? prev.catch(() => undefined).then(() =>
+        isActorCurrent(actor, isCurrent) ? fn() : undefined,
+      )
+    : isActorCurrent(actor, isCurrent)
+      ? fn()
+      : Promise.resolve();
   actor.rwcLock = next;
   return next;
 }
 
-export function onAddEffect(actor: RoundedWindowActor) {
+type IsCurrent = () => boolean;
+
+function isActorCurrent(actor: RoundedWindowActor, isCurrent: IsCurrent) {
+  try {
+    return isCurrent() && hasMetaWindow(actor) && !actor.is_destroyed();
+  } catch {
+    return false;
+  }
+}
+
+export function onAddEffect(
+  actor: RoundedWindowActor,
+  isCurrent: IsCurrent = () => true,
+) {
   return withActorLock(actor, async () => {
-    logDebug(`Adding effect to ${actor?.metaWindow.wmClass}`);
+    if (!isActorCurrent(actor, isCurrent)) return;
+    logDebug(`Adding effect to ${actor.metaWindow.wmClass}`);
     const win = actor.metaWindow;
 
     // Skip windows that already have the effect to prevent a memory leak
-    const shouldHaveEffect = await shouldEnableEffect(win);
+    const shouldHaveEffect = await shouldEnableEffect(win, isCurrent);
+    if (!isActorCurrent(actor, isCurrent)) return;
+
     const effect = getRoundedCornersEffect(actor);
     const hasEffect = effect && actor.rwcCustomData;
 
@@ -60,7 +83,7 @@ export function onAddEffect(actor: RoundedWindowActor) {
     }
 
     createEffect(actor);
-  });
+  }, isCurrent);
 }
 
 /**
@@ -69,7 +92,10 @@ export function onAddEffect(actor: RoundedWindowActor) {
  * @param actor - The window actor to create the effect on.
  */
 function createEffect(actor: RoundedWindowActor) {
-  unwrapActor(actor)?.add_effect_with_name(
+  const target = unwrapActor(actor);
+  if (!target) return;
+
+  target.add_effect_with_name(
     ROUNDED_CORNERS_EFFECT,
     new RoundedCornersEffect(),
   );
@@ -100,6 +126,7 @@ function createEffect(actor: RoundedWindowActor) {
     shadow,
     unminimizedTimeoutId: 0,
     propertyBindings,
+    signalConnections: [],
   };
 
   // Make sure the effect is applied correctly.
@@ -108,33 +135,95 @@ function createEffect(actor: RoundedWindowActor) {
 
 export function onRemoveEffect(actor: RoundedWindowActor) {
   const name = ROUNDED_CORNERS_EFFECT;
-  unwrapActor(actor)?.remove_effect_by_name(name);
+  let firstChild: Clutter.Actor | null = null;
+  try {
+    firstChild = actor.firstChild;
+  } catch (error) {
+    logDebug(`Window actor no longer has a first child: ${error}`);
+  }
+
+  for (const target of [actor, firstChild]) {
+    if (!target) continue;
+    try {
+      target.remove_effect_by_name(name);
+    } catch (error) {
+      logError('Could not remove rounded-corner effect:', error);
+    }
+  }
+
+  const customData = actor.rwcCustomData;
 
   // Unbind all properties
-  for (const binding of actor.rwcCustomData?.propertyBindings || []) {
-    binding.unbind();
+  for (const binding of customData?.propertyBindings || []) {
+    try {
+      binding.unbind();
+    } catch (error) {
+      logError('Could not unbind shadow actor property:', error);
+    }
+  }
+
+  for (const connection of customData?.signalConnections || []) {
+    try {
+      if (GObject.signal_handler_is_connected(connection.object, connection.id)) {
+        connection.object.disconnect(connection.id);
+      }
+    } catch (error) {
+      logError('Could not disconnect window animation callback:', error);
+    }
   }
 
   // Remove shadow actor
-  const shadow = actor.rwcCustomData?.shadow;
+  const shadow = customData?.shadow;
   if (shadow) {
-    shadow.get_constraints().forEach(constraint => {
-      shadow.remove_constraint(constraint);
-    });
-    global.windowGroup.remove_child(shadow);
-    shadow.clear_effects();
-    shadow.destroy();
+    let constraints: Clutter.Constraint[] = [];
+    try {
+      constraints = shadow.get_constraints();
+    } catch (error) {
+      logError('Could not inspect shadow actor constraints:', error);
+    }
+
+    for (const constraint of constraints) {
+      try {
+        shadow.remove_constraint(constraint);
+      } catch (error) {
+        logError('Could not remove a shadow actor constraint:', error);
+      }
+    }
+    try {
+      shadow.get_parent()?.remove_child(shadow);
+    } catch (error) {
+      logError('Could not detach shadow actor:', error);
+    }
+    try {
+      shadow.clear_effects();
+    } catch (error) {
+      logError('Could not clear shadow effects:', error);
+    }
+    try {
+      shadow.destroy();
+    } catch (error) {
+      logError('Could not remove shadow actor:', error);
+    }
   }
 
   // Remove all timeout handler
-  const timeoutId = actor.rwcCustomData?.unminimizedTimeoutId;
+  const timeoutId = customData?.unminimizedTimeoutId;
   if (timeoutId) {
-    GLib.source_remove(timeoutId);
+    try {
+      GLib.source_remove(timeoutId);
+    } catch (error) {
+      logError('Could not remove window refresh source:', error);
+    }
   }
   delete actor.rwcCustomData;
 }
 
-export function onMinimize(actor: RoundedWindowActor) {
+export function onMinimize(
+  actor: RoundedWindowActor,
+  isCurrent: IsCurrent = () => true,
+) {
+  if (!isActorCurrent(actor, isCurrent)) return;
+
   // Compatibility with "Compiz alike magic lamp effect".
   // When minimizing a window, disable the shadow to make the magic lamp effect
   // work.
@@ -148,27 +237,40 @@ export function onMinimize(actor: RoundedWindowActor) {
   }
 }
 
-export async function onUnminimize(actor: RoundedWindowActor) {
+export async function onUnminimize(
+  actor: RoundedWindowActor,
+  isCurrent: IsCurrent = () => true,
+) {
+  if (!isActorCurrent(actor, isCurrent)) return;
+
   // Compatibility with "Compiz alike magic lamp effect".
   // When unminimizing a window, wait until the effect is completed before
   // showing the shadow.
   const magicLampEffect = actor.get_effect('unminimize-magic-lamp-effect');
-  const shadow = actor.rwcCustomData?.shadow;
+  const customData = actor.rwcCustomData;
+  const shadow = customData?.shadow;
   const roundedCornersEffect = getRoundedCornersEffect(actor);
-  if (magicLampEffect && shadow && roundedCornersEffect) {
+  if (magicLampEffect && shadow && roundedCornersEffect && customData) {
     shadow.visible = false;
     type Effect = Clutter.Effect & { timerId: Clutter.Timeline };
     const timer = (magicLampEffect as Effect).timerId;
 
-    const id = timer.connect('new-frame', source => {
-      // Wait until the effect is 98% completed
+    const connection = { object: timer, id: 0 };
+    connection.id = timer.connect('new-frame', source => {
+      if (!isActorCurrent(actor, isCurrent)) {
+        disconnectActorSignal(actor, connection);
+        return;
+      }
+
+      // Wait until the effect is 98% completed.
       if (source.get_progress() > 0.98) {
         logDebug('Unminimizing with magic lamp effect');
         shadow.visible = true;
         roundedCornersEffect.enabled = true;
-        source.disconnect(id);
+        disconnectActorSignal(actor, connection);
       }
     });
+    customData.signalConnections.push(connection);
   }
 
   // Chromium has a bug where windows are sometimes unminimized to the
@@ -177,7 +279,8 @@ export async function onUnminimize(actor: RoundedWindowActor) {
   // proper position; otherwise, the effect bounds would use the wrong one and
   // cut off a part of the window.
   if (
-    (await isChromium(actor.metaWindow)) &&
+    (await isChromium(actor.metaWindow, isCurrent)) &&
+    isActorCurrent(actor, isCurrent) &&
     actor.rwcCustomData !== undefined
   ) {
     const oldTimeout = actor.rwcCustomData.unminimizedTimeoutId;
@@ -186,7 +289,13 @@ export async function onUnminimize(actor: RoundedWindowActor) {
       GLib.PRIORITY_DEFAULT,
       250,
       () => {
-        refreshRoundedCorners(actor);
+        const customData = actor.rwcCustomData;
+        if (customData) customData.unminimizedTimeoutId = 0;
+        if (isActorCurrent(actor, isCurrent)) {
+          void refreshRoundedCorners(actor, isCurrent).catch(error =>
+            logError('Could not refresh an unminimized window:', error),
+          );
+        }
         return GLib.SOURCE_REMOVE;
       },
     );
@@ -253,7 +362,12 @@ function createShadow(actor: RoundedWindowActor) {
  *
  * @param actor - The window actor to refresh the shadow for.
  */
-function refreshShadow(actor: RoundedWindowActor) {
+function refreshShadow(
+  actor: RoundedWindowActor,
+  isCurrent: IsCurrent = () => true,
+) {
+  if (!isActorCurrent(actor, isCurrent)) return;
+
   const win = actor.metaWindow;
   const shadow = actor.rwcCustomData?.shadow;
   if (!shadow) return;
@@ -262,9 +376,16 @@ function refreshShadow(actor: RoundedWindowActor) {
     ? getPref('focused-shadow')
     : getPref('unfocused-shadow');
 
-  const { borderRadius, padding } = getRoundedCornersCfg(win);
+  const { borderRadius, padding, smoothing } = getRoundedCornersCfg(win);
 
-  updateShadowActorStyle(win, shadow, borderRadius, shadowSettings, padding);
+  updateShadowActorStyle(
+    win,
+    shadow,
+    borderRadius,
+    shadowSettings,
+    padding,
+    smoothing,
+  );
 }
 
 /**
@@ -272,11 +393,16 @@ function refreshShadow(actor: RoundedWindowActor) {
  *
  * @param actor - The window actor to refresh the rounded corners settings for.
  */
-function refreshRoundedCorners(actor: RoundedWindowActor) {
+function refreshRoundedCorners(
+  actor: RoundedWindowActor,
+  isCurrent: IsCurrent = () => true,
+) {
   return withActorLock(actor, async () => {
+    if (!isActorCurrent(actor, isCurrent)) return;
     const win = actor.metaWindow;
 
-    const shouldHaveEffect = await shouldEnableEffect(win);
+    const shouldHaveEffect = await shouldEnableEffect(win, isCurrent);
+    if (!isActorCurrent(actor, isCurrent)) return;
 
     const windowInfo = (actor as RoundedWindowActor).rwcCustomData;
     const effect = getRoundedCornersEffect(actor);
@@ -303,7 +429,7 @@ function refreshRoundedCorners(actor: RoundedWindowActor) {
     if (!hasEffect) return;
 
     updateEffect(actor);
-  });
+  }, isCurrent);
 }
 
 /**
@@ -312,6 +438,8 @@ function refreshRoundedCorners(actor: RoundedWindowActor) {
  * @param actor - The window actor to update the effect for.
  */
 function updateEffect(actor: RoundedWindowActor) {
+  if (!hasMetaWindow(actor) || actor.is_destroyed()) return;
+
   const win = actor.metaWindow;
   const windowInfo = actor.rwcCustomData;
   if (!windowInfo) return;
@@ -343,7 +471,29 @@ function updateEffect(actor: RoundedWindowActor) {
 function refreshAllRoundedCorners() {
   for (const actor of global.get_window_actors()) {
     if (hasMetaWindow(actor)) {
-      refreshRoundedCorners(actor);
+      void refreshRoundedCorners(actor).catch(error =>
+        logError('Could not refresh a window after a settings change:', error),
+      );
     }
+  }
+}
+
+/** Disconnect a one-shot animation signal and release its actor reference. */
+function disconnectActorSignal(
+  actor: RoundedWindowActor,
+  connection: { object: GObject.Object; id: number },
+) {
+  const connections = actor.rwcCustomData?.signalConnections;
+  if (connections) {
+    const index = connections.indexOf(connection);
+    if (index >= 0) connections.splice(index, 1);
+  }
+
+  try {
+    if (GObject.signal_handler_is_connected(connection.object, connection.id)) {
+      connection.object.disconnect(connection.id);
+    }
+  } catch (error) {
+    logError('Could not disconnect window animation callback:', error);
   }
 }

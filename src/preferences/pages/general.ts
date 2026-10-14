@@ -39,7 +39,6 @@ export const GeneralPage = GObject.registerClass(
       'keepForMaximized',
       'keepForFullscreen',
       'paddings',
-      'tweakKitty',
       'enableDebugLogs',
     ],
   },
@@ -54,7 +53,6 @@ export const GeneralPage = GObject.registerClass(
     private declare _keepForMaximized: Adw.SwitchRow;
     private declare _keepForFullscreen: Adw.SwitchRow;
     private declare _paddings: PaddingsRowClass;
-    private declare _tweakKitty: Adw.SwitchRow;
     private declare _enableDebugLogs: Adw.SwitchRow;
 
     readonly #settings = getPref('global-rounded-corner-settings');
@@ -184,13 +182,6 @@ export const GeneralPage = GObject.registerClass(
           this.#settings.padding.right = row.paddingEnd;
           this.#updateGlobalConfig();
         },
-      );
-
-      bindPref(
-        'tweak-kitty-terminal',
-        this._tweakKitty,
-        'active',
-        Gio.SettingsBindFlags.DEFAULT,
       );
 
       bindPref(

@@ -13,12 +13,11 @@ import Meta from 'gi://Meta';
 
 import { boxShadowCss } from '../utils/box_shadow.js';
 import {
-  APP_SHADOWS,
   ROUNDED_CORNERS_EFFECT,
   SHADOW_PADDING,
 } from '../utils/constants.js';
 import { readFile } from '../utils/file.js';
-import { logDebug } from '../utils/log.js';
+import { logDebug, logError } from '../utils/log.js';
 import { getPref } from '../utils/settings.js';
 
 /**
@@ -93,20 +92,6 @@ export function computeBounds(
     y2: y + actor.height + height,
   };
 
-  // Kitty draws its window decoration by itself, so we need to manually
-  // clip its shadow and recompute the outer bounds for it.
-  if (
-    getPref('tweak-kitty-terminal') &&
-    actor.metaWindow.get_client_type() === Meta.WindowClientType.WAYLAND &&
-    actor.metaWindow.wmClass === 'kitty'
-  ) {
-    const [x1, y1, x2, y2] = APP_SHADOWS.kitty;
-    bounds.x1 += x1;
-    bounds.y1 += y1;
-    bounds.x2 -= x2;
-    bounds.y2 -= y2;
-  }
-
   return bounds;
 }
 
@@ -162,16 +147,12 @@ export function updateShadowActorStyle(
   borderRadius: number,
   shadow: BoxShadow,
   padding: RoundedCornerSettings['padding'],
+  smoothing: number,
 ) {
   const { left, right, top, bottom } = padding;
 
-  // Increase border_radius when smoothing is on.
-  // Read global settings once to avoid repeated GSettings deserializations.
-  let adjustedBorderRadius = borderRadius;
-  const globalCfg = getPref('global-rounded-corner-settings');
-  if (globalCfg !== null) {
-    adjustedBorderRadius *= 1.0 + globalCfg.smoothing;
-  }
+  // Increase border radius when smoothing is enabled for this profile.
+  const adjustedBorderRadius = borderRadius * (1.0 + smoothing);
 
   actor.style = `padding: ${SHADOW_PADDING}px;`;
 
@@ -208,7 +189,10 @@ export function updateShadowActorStyle(
  */
 export async function shouldEnableEffect(
   win: Meta.Window & { _appType?: AppType },
+  isCurrent: () => boolean = () => true,
 ) {
+  if (!isCurrent()) return false;
+
   // Skip rounded corners for the DING (Desktop Icons NG) extension.
   //
   // https://extensions.gnome.org/extension/2087/desktop-icons-ng-ding/
@@ -238,7 +222,9 @@ export async function shouldEnableEffect(
   }
 
   // Skip libhandy/libadwaita applications according to settings.
-  const appType = win._appType ?? (await getAppType(win));
+  const appType = win._appType ?? (await getAppType(win, isCurrent));
+  if (!isCurrent()) return false;
+
   win._appType = appType; // Cache the result.
   logDebug(`Check Type of window:${win.wmClass} => ${appType}`);
 
@@ -274,24 +260,29 @@ export async function shouldEnableEffect(
  * @param win - The window to check.
  * @returns whether the application uses Chromium.
  */
-export async function isChromium(win: Meta.Window & { _isChromium?: boolean }) {
+export async function isChromium(
+  win: Meta.Window & { _isChromium?: boolean },
+  isCurrent: () => boolean = () => true,
+) {
+  if (!isCurrent()) return false;
+
   // biome-ignore lint/suspicious/noEqualsToNull: matching both null and undefined is intended.
   if (win._isChromium != null) return win._isChromium;
-  return await withProcMaps(
+  const result = await withProcMaps(
     win,
     contents => {
-      const hasChromiumShm = contents.includes(
-        '/dev/shm/.org.chromium.Chromium',
-      );
-      win._isChromium = hasChromiumShm;
-      logDebug(win.wmClass, 'chromium', hasChromiumShm);
-      return hasChromiumShm;
+      return contents.includes('/dev/shm/.org.chromium.Chromium');
     },
     () => {
-      win._isChromium = false;
       return false;
     },
+    isCurrent,
   );
+
+  if (!isCurrent()) return false;
+  win._isChromium = result;
+  logDebug(win.wmClass, 'chromium', result);
+  return result;
 }
 
 type AppType = 'LibAdwaita' | 'LibHandy' | 'Other';
@@ -302,7 +293,7 @@ type AppType = 'LibAdwaita' | 'LibHandy' | 'Other';
  * @param win - The window to get the type of.
  * @returns the type of the application.
  */
-function getAppType(win: Meta.Window) {
+function getAppType(win: Meta.Window, isCurrent: () => boolean) {
   return withProcMaps<AppType>(
     win,
     contents => {
@@ -317,6 +308,7 @@ function getAppType(win: Meta.Window) {
       return 'Other';
     },
     () => 'Other',
+    isCurrent,
   );
 }
 
@@ -333,6 +325,7 @@ async function withProcMaps<T>(
   win: Meta.Window,
   successCb: (contents: string) => T,
   errorCb: () => T,
+  isCurrent: () => boolean = () => true,
 ) {
   try {
     const contents = await readFile(`/proc/${win.get_pid()}/maps`);
@@ -342,7 +335,9 @@ async function withProcMaps<T>(
       e instanceof Gio.IOErrorEnum &&
       e.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.PERMISSION_DENIED)
     ) {
-      logDebug(`Permission denied reading /proc maps for ${win.wmClass}`);
+      if (isCurrent()) {
+        logDebug(`Permission denied reading /proc maps for ${win.wmClass}`);
+      }
     } else {
       logError(e);
     }

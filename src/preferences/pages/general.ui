@@ -157,17 +157,6 @@
     </child>
     <child>
       <object class="AdwPreferencesGroup">
-        <property name="title" translatable="yes">Tweaks</property>
-        <child>
-          <object class="AdwSwitchRow" id="tweakKitty">
-            <property name="title" translatable="yes">Add rounded corners to Kitty Terminal on Wayland</property>
-            <property name="subtitle" translatable="yes">Adjust paddings for Kitty Terminal to correctly round its corners</property>
-          </object>
-        </child>
-      </object>
-    </child>
-    <child>
-      <object class="AdwPreferencesGroup">
         <property name="title" translatable="yes">Debug</property>
         <child>
           <object class="AdwSwitchRow" id="enableDebugLogs">

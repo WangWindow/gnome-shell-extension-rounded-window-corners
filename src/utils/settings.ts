@@ -28,7 +28,6 @@ type Schema = {
   'unfocused-shadow': BoxShadow;
   'keep-shadow-for-maximized-fullscreen': boolean;
   'debug-mode': boolean;
-  'tweak-kitty-terminal': boolean;
 };
 
 /** All existing schema keys. */
@@ -48,7 +47,6 @@ export const Schema = {
   'unfocused-shadow': 'a{si}',
   'keep-shadow-for-maximized-fullscreen': 'b',
   'debug-mode': 'b',
-  'tweak-kitty-terminal': 'b',
 };
 
 /** The raw GSettings object for direct manipulation. */
@@ -185,7 +183,7 @@ function packRoundedCornerSettings(settings: RoundedCornerSettings) {
   );
   const borderRadius = GLib.Variant.new_uint32(settings.borderRadius);
   const smoothing = GLib.Variant.new_double(settings.smoothing);
-  const borderColor = new GLib.Variant('(dddd)', settings.borderColor);
+  const borderColor = new GLib.Variant('ad', settings.borderColor);
   const enabled = GLib.Variant.new_boolean(settings.enabled);
 
   const variantObject = {

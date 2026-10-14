@@ -47,6 +47,9 @@ export const ResetPage = GObject.registerClass(
 
     // Map prefs to their labels in the UI.
     readonly #resetLabels: { [Key in ResetKey]?: string } = {
+      whitelist: 'Use application list as whitelist',
+      blacklist: 'Application inclusion/exclusion list',
+      'custom-rounded-corner-settings': 'Custom application appearance',
       'skip-libadwaita-app': 'Skip LibAdwaita Applications',
       'skip-libhandy-app': 'Skip LibHandy Applications',
       'focused-shadow': 'Focus Window Shadow Style',
@@ -56,6 +59,7 @@ export const ResetPage = GObject.registerClass(
       'border-width': 'Border Width',
       'debug-mode': 'Enable Log',
 
+      enabled: 'Enable rounded corners',
       borderRadius: 'Border Radius',
       borderColor: 'Border Color',
       padding: 'Padding',

@@ -13,7 +13,11 @@ import { overview } from 'resource:///org/gnome/shell/ui/main.js';
 import { LinearFilterEffect } from '../effect/linear_filter_effect.js';
 import { shouldEnableEffect } from '../manager/utils.js';
 import { OVERVIEW_SHADOW_ACTOR, SHADOW_PADDING } from '../utils/constants.js';
-import { logDebug } from '../utils/log.js';
+import { logDebug, logError } from '../utils/log.js';
+
+const overviewShadowClones = new Set<Clutter.Clone>();
+const overviewFilterActors = new Set<Clutter.Actor>();
+const overviewFilterEffect = 'rwc-overview-linear-filter';
 
 /**
  * Add a shadow actor to a window preview in the overview.
@@ -23,7 +27,32 @@ import { logDebug } from '../utils/log.js';
 export async function addShadowInOverview(
   window: Meta.Window,
   self: WindowPreview,
+  isCurrent: () => boolean = () => true,
 ) {
+  let previewDestroyed = false;
+  const previewDestroyConnection = self.connect('destroy', () => {
+    previewDestroyed = true;
+  });
+  const isLive = () => isCurrent() && !previewDestroyed;
+
+  try {
+    await addShadowForLiveWindow(window, self, isLive);
+  } finally {
+    if (
+      GObject.signal_handler_is_connected(self, previewDestroyConnection)
+    ) {
+      self.disconnect(previewDestroyConnection);
+    }
+  }
+}
+
+async function addShadowForLiveWindow(
+  window: Meta.Window,
+  self: WindowPreview,
+  isLive: () => boolean,
+) {
+  if (!isLive()) return;
+
   // Skip attached dialogs — they are added via _updateAttachedDialogs/addDialog
   // and should not get their own shadow clone in the overview.
   // We detect them by checking if the window is transient-for another window,
@@ -34,10 +63,19 @@ export async function addShadowInOverview(
 
   // If the original window doesn't have rounded corners or a shadow,
   // we don't need to do anything, so we can skip it.
-  const hasRoundedCorners = await shouldEnableEffect(window);
-  const windowActor = window.get_compositor_private() as RoundedWindowActor;
+  const hasRoundedCorners = await shouldEnableEffect(window, isLive);
+  if (!hasRoundedCorners || !isLive()) return;
+
+  const windowActor = window.get_compositor_private() as
+    | RoundedWindowActor
+    | null;
+  if (!windowActor || windowActor.is_destroyed()) return;
   const shadow = windowActor.rwcCustomData?.shadow;
-  if (!(hasRoundedCorners && shadow)) {
+  if (!shadow) return;
+
+  if (
+    self.get_children().some(child => child.get_name() === OVERVIEW_SHADOW_ACTOR)
+  ) {
     return;
   }
 
@@ -49,13 +87,56 @@ export async function addShadowInOverview(
   // Apply linear interpolation to the window preview to make it look
   // better (there's an upstream GNOME bug causing windows to be blurry,
   // this makes the effect less noticeable)
-  windowContainer.firstChild?.add_effect(new LinearFilterEffect());
+  const filterActor = windowContainer.firstChild;
+  if (filterActor) {
+    filterActor.add_effect_with_name(
+      overviewFilterEffect,
+      new LinearFilterEffect(),
+    );
+    overviewFilterActors.add(filterActor);
+  }
 
   // Create a clone of the window's shadow actor and add it to the preview
   const shadowActorClone = new OverviewShadowActorClone(shadow, self);
-  windowContainer.bind_property('scale-x', shadowActorClone, 'scale-x', 1);
-  windowContainer.bind_property('scale-y', shadowActorClone, 'scale-y', 1);
+  const bindings = [
+    windowContainer.bind_property('scale-x', shadowActorClone, 'scale-x', 1),
+    windowContainer.bind_property('scale-y', shadowActorClone, 'scale-y', 1),
+  ];
+  let destroyConnection = 0;
+  destroyConnection = shadowActorClone.connect('destroy', () => {
+    for (const binding of bindings) binding?.unbind();
+    overviewShadowClones.delete(shadowActorClone);
+    if (filterActor) {
+      filterActor.remove_effect_by_name(overviewFilterEffect);
+      overviewFilterActors.delete(filterActor);
+    }
+    if (GObject.signal_handler_is_connected(shadowActorClone, destroyConnection)) {
+      shadowActorClone.disconnect(destroyConnection);
+    }
+  });
+  overviewShadowClones.add(shadowActorClone);
   self.insert_child_below(shadowActorClone, windowContainer);
+}
+
+/** Remove overview-only clones synchronously when the extension is disabled. */
+export function clearOverviewShadowClones() {
+  for (const clone of [...overviewShadowClones]) {
+    try {
+      clone.destroy();
+    } catch (error) {
+      logError('Could not remove an overview shadow clone:', error);
+      overviewShadowClones.delete(clone);
+    }
+  }
+
+  for (const actor of overviewFilterActors) {
+    try {
+      actor.remove_effect_by_name(overviewFilterEffect);
+    } catch (error) {
+      logError('Could not remove an overview filter effect:', error);
+    }
+  }
+  overviewFilterActors.clear();
 }
 
 /**

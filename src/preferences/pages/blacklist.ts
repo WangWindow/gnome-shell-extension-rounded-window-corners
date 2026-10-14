@@ -88,7 +88,8 @@ export const BlacklistPage = GObject.registerClass(
      * @param row - The row to delete.
      */
     #deleteWindow(row: AppRowClass) {
-      this.#blacklist.splice(this.#blacklist.indexOf(row.title), 1);
+      const index = this.#blacklist.indexOf(row.subtitle);
+      if (index >= 0) this.#blacklist.splice(index, 1);
       setPref('blacklist', this.#blacklist);
       this._blacklistGroup.remove(row);
     }
@@ -120,6 +121,7 @@ export const BlacklistPage = GObject.registerClass(
       } else {
         // Otherwise, replace the old window with the new one.
         const oldId = this.#blacklist.indexOf(oldWmClass);
+        if (oldId < 0) return false;
         this.#blacklist.splice(oldId, 1, newWmClass);
       }
 

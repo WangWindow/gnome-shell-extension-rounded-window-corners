@@ -1,218 +1,392 @@
 /**
- * @file Manages connections between gnome shell events and the rounded corners
- * effect. See {@link enableEffect} for more information.
+ * @file Manages Shell event connections and the lifecycle of rounded-corner
+ * effects attached to window actors.
  */
 
-import type GObject from 'gi://GObject';
+import GObject from 'gi://GObject';
 import type Meta from 'gi://Meta';
 import type Shell from 'gi://Shell';
 
-import { logDebug } from '../utils/log.js';
+import { logDebug, logError } from '../utils/log.js';
 import { prefs } from '../utils/settings.js';
 import { hasMetaWindow, type RoundedWindowActor } from '../utils/types.js';
 import * as handlers from './event_handlers.js';
 
-/**
- * The rounded corners effect has to perform some actions when differen events
- * happen. For example, when a new window is opened, the effect has to detect
- * it and add rounded corners to it.
- *
- * The `enableEffect` method handles this by attaching the necessary signals
- * to matching handlers on each effect.
- */
+type SignalConnection = {
+  object: GObject.Object;
+  id: number;
+};
+
+type WindowState =
+  | 'discovered'
+  | 'waiting-for-class'
+  | 'waiting-for-child'
+  | 'waiting-for-content'
+  | 'ready'
+  | 'evaluating'
+  | 'applied'
+  | 'skipped'
+  | 'closed';
+
+type WindowLifecycle = {
+  actor: RoundedWindowActor;
+  window: Meta.Window;
+  generation: number;
+  state: WindowState;
+  closed: boolean;
+  firstFrameSeen: boolean;
+  updatesConnected: boolean;
+  connections: SignalConnection[];
+  readinessConnections: SignalConnection[];
+};
+
+const connections: SignalConnection[] = [];
+const windowLifecycles = new Map<Meta.WindowActor, WindowLifecycle>();
+
+let generation = 0;
+let enabled = false;
+
+/** Enable window tracking and decorate windows that are already open. */
 export function enableEffect() {
-  // Update the effect when settings are changed.
-  connect(prefs, 'changed', handlers.onSettingsChanged);
+  if (enabled) return;
+
+  generation++;
+  enabled = true;
+
+  connect(prefs, 'changed', refreshAllWindows);
 
   const wm = global.windowManager;
-
-  // Add the effect to all windows when the extension is enabled.
-  const windowActors = global.get_window_actors();
-  logDebug(`Initial window count: ${windowActors.length}`);
-  for (const actor of windowActors) {
-    if (hasMetaWindow(actor)) {
-      applyEffectTo(actor);
-    }
+  for (const actor of global.get_window_actors()) {
+    if (hasMetaWindow(actor)) trackWindow(actor);
   }
 
-  // Add the effect to new windows when they are opened.
   connect(
     global.display,
     'window-created',
     (_: Meta.Display, win: Meta.Window) => {
-      const actor: RoundedWindowActor = win.get_compositor_private();
-
-      // If wm_class_instance of Meta.Window is null, wait for it to be
-      // set before applying the effect.
-      if (win?.wmClass === null) {
-        const notifyId = win.connect('notify::wm-class', () => {
-          applyEffectTo(actor);
-          win.disconnect(notifyId);
-        });
-      } else {
-        applyEffectTo(actor);
-      }
+      const actor = win.get_compositor_private();
+      if (actor) trackWindow(actor as Meta.WindowActor);
     },
   );
 
-  // Window minimized.
   connect(wm, 'minimize', (_: Shell.WM, actor: Meta.WindowActor) => {
-    if (hasMetaWindow(actor)) handlers.onMinimize(actor);
+    const lifecycle = windowLifecycles.get(actor);
+    if (lifecycle && isCurrent(lifecycle)) {
+      dispatchSyncWindowTask(lifecycle, handlers.onMinimize);
+    }
   });
 
-  // Window unminimized.
   connect(wm, 'unminimize', (_: Shell.WM, actor: Meta.WindowActor) => {
-    if (hasMetaWindow(actor)) handlers.onUnminimize(actor);
+    const lifecycle = windowLifecycles.get(actor);
+    if (lifecycle && isCurrent(lifecycle)) {
+      dispatchWindowTask(lifecycle, handlers.onUnminimize);
+    }
   });
 
-  // When closing the window, remove the effect from it.
   connect(wm, 'destroy', (_: Shell.WM, actor: Meta.WindowActor) =>
     removeEffectFrom(actor),
   );
 
-  // When windows are restacked, the order of shadow actors as well.
-  connect(global.display, 'restacked', handlers.onRestacked);
+  connect(global.display, 'restacked', () => {
+    try {
+      handlers.onRestacked();
+    } catch (error) {
+      logError('Could not restack shadow actors:', error);
+    }
+  });
 }
 
-/** Disable the effect for all windows. */
+/** Invalidate pending work before synchronously removing all extension state. */
 export function disableEffect() {
-  for (const actor of global.get_window_actors()) {
-    removeEffectFrom(actor);
+  enabled = false;
+  generation++;
+
+  for (const lifecycle of [...windowLifecycles.values()]) {
+    closeLifecycle(lifecycle);
   }
 
-  disconnectAll();
+  disconnectConnections(connections);
 }
 
-const connections: { object: GObject.Object; id: number }[] = [];
-
-/**
- * Connect a callback to an object signal and add it to the list of all
- * connections. This allows to easily disconnect all signals when removing
- * the effect.
- *
- * @param object - The object to connect the callback to.
- * @param signal - The name of the signal.
- * @param callback - The function to connect to the signal.
- */
+/** Connect a process-wide signal and retain ownership for disable cleanup. */
 function connect(
   object: GObject.Object,
   signal: string,
-  // biome-ignore lint/suspicious/noExplicitAny: Signal callbacks can have any return args and return types.
+  // biome-ignore lint/suspicious/noExplicitAny: GObject signal callbacks vary by signal.
   callback: (...args: any[]) => any,
 ) {
-  connections.push({
-    object,
-    id: object.connect(signal, callback),
-  });
+  connections.push({ object, id: object.connect(signal, callback) });
 }
 
-/**
- * Disconnect all connected signals from all actors or a specific object.
- * Pruning disconnected entries keeps the array from growing unboundedly as
- * windows are opened and closed over the lifetime of the session.
- *
- * @param object - If object is provided, only disconnect signals from it.
- */
-function disconnectAll(object?: GObject.Object | null) {
-  if (object === null) return;
-  let i = connections.length;
-  while (i--) {
-    const connection = connections[i];
-    if (object === undefined || connection.object === object) {
-      connection.object.disconnect(connection.id);
-      // Over time as windows open and close, connections would grow
-      // indefinitely with stale entries pointing to dead window objects
-      // Release the reference to the GObject so it can be garbage
-      // collected after the window is closed, preventing a memory leak.
-      connections.splice(i, 1);
+/** Connect a window-owned signal and retain it for lifecycle cleanup. */
+function connectWindow(
+  lifecycle: WindowLifecycle,
+  object: GObject.Object,
+  signal: string,
+  // biome-ignore lint/suspicious/noExplicitAny: GObject signal callbacks vary by signal.
+  callback: (...args: any[]) => any,
+  readiness = false,
+) {
+  const connection = { object, id: object.connect(signal, callback) };
+  lifecycle.connections.push(connection);
+  if (readiness) lifecycle.readinessConnections.push(connection);
+}
+
+/** Disconnect and release a set of owned signal connections. */
+function disconnectConnections(ownedConnections: SignalConnection[]) {
+  while (ownedConnections.length > 0) {
+    const connection = ownedConnections.pop();
+    if (!connection) continue;
+
+    try {
+      if (GObject.signal_handler_is_connected(connection.object, connection.id)) {
+        connection.object.disconnect(connection.id);
+      }
+    } catch (error) {
+      logDebug(`Signal was already disconnected: ${error}`);
     }
   }
 }
 
-/**
- * Apply the effect to a window.
- *
- * While {@link enableEffect} handles global events such as window creation,
- * this function handles events that happen to a specific window, like changing
- * its size or workspace.
- *
- * @param actor - The window actor to apply the effect to.
- */
-function applyEffectTo(actor: RoundedWindowActor) {
-  // In wayland sessions, the surface actor of XWayland clients is sometimes
-  // not ready when the window is created. In this case, we wait until it is
-  // ready before applying the effect.
-  if (!actor.firstChild) {
-    const id = actor.connect('notify::first-child', () => {
-      applyEffectTo(actor);
-      actor.disconnect(id);
-    });
+/** Disconnect readiness callbacks before retrying a window readiness check. */
+function disconnectReadinessConnections(lifecycle: WindowLifecycle) {
+  while (lifecycle.readinessConnections.length > 0) {
+    const connection = lifecycle.readinessConnections.pop();
+    if (!connection) continue;
 
+    const index = lifecycle.connections.indexOf(connection);
+    if (index >= 0) lifecycle.connections.splice(index, 1);
+    disconnectConnections([connection]);
+  }
+}
+
+/** Check that an async continuation still belongs to this live actor/window. */
+function isCurrent(lifecycle: WindowLifecycle) {
+  if (
+    !enabled ||
+    lifecycle.closed ||
+    lifecycle.generation !== generation ||
+    windowLifecycles.get(lifecycle.actor) !== lifecycle
+  ) {
+    return false;
+  }
+
+  try {
+    return (
+      !lifecycle.actor.is_destroyed() &&
+      lifecycle.actor.metaWindow === lifecycle.window
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** Create one record per compositor actor and start its readiness checks. */
+function trackWindow(actor: Meta.WindowActor) {
+  if (!enabled) return;
+
+  const existing = windowLifecycles.get(actor);
+  if (existing && isCurrent(existing)) return;
+  if (existing) closeLifecycle(existing);
+
+  try {
+    if (actor.is_destroyed() || !hasMetaWindow(actor)) return;
+  } catch {
     return;
   }
 
-  const texture = actor.get_texture();
+  const lifecycle: WindowLifecycle = {
+    actor,
+    window: actor.metaWindow,
+    generation,
+    state: 'discovered',
+    closed: false,
+    firstFrameSeen: false,
+    updatesConnected: false,
+    connections: [],
+    readinessConnections: [],
+  };
+  windowLifecycles.set(actor, lifecycle);
+
+  connectWindow(lifecycle, actor, 'destroy', () => closeLifecycle(lifecycle));
+  connectWindow(lifecycle, lifecycle.window, 'unmanaged', () =>
+    closeLifecycle(lifecycle),
+  );
+
+  processWindow(lifecycle);
+}
+
+/** Wait for window metadata and content before attaching update handlers. */
+function processWindow(lifecycle: WindowLifecycle) {
+  if (!isCurrent(lifecycle)) return;
+
+  try {
+    processReadyWindow(lifecycle);
+  } catch (error) {
+    if (!isCurrent(lifecycle)) return;
+    logError(
+      `Could not prepare window ${lifecycle.window.wmClass} for decoration:`,
+      error,
+    );
+    closeLifecycle(lifecycle);
+  }
+}
+
+function processReadyWindow(lifecycle: WindowLifecycle) {
+  if (!isCurrent(lifecycle)) return;
+  disconnectReadinessConnections(lifecycle);
+
+  if (lifecycle.window.wmClass === null) {
+    lifecycle.state = 'waiting-for-class';
+    connectWindow(
+      lifecycle,
+      lifecycle.window,
+      'notify::wm-class',
+      () => processWindow(lifecycle),
+      true,
+    );
+    return;
+  }
+
+  if (!lifecycle.actor.firstChild) {
+    lifecycle.state = 'waiting-for-child';
+    connectWindow(
+      lifecycle,
+      lifecycle.actor,
+      'notify::first-child',
+      () => processWindow(lifecycle),
+      true,
+    );
+    return;
+  }
+
+  const texture = lifecycle.actor.get_texture();
   if (!texture) {
+    lifecycle.state = 'waiting-for-content';
+    connectWindow(
+      lifecycle,
+      lifecycle.actor,
+      'notify::mapped',
+      () => processWindow(lifecycle),
+      true,
+    );
+    if (!lifecycle.firstFrameSeen) {
+      connectWindow(
+        lifecycle,
+        lifecycle.actor,
+        'first-frame',
+        () => {
+          lifecycle.firstFrameSeen = true;
+          processWindow(lifecycle);
+        },
+        true,
+      );
+    }
     return;
   }
 
-  // Window resized.
-  //
-  // The signal has to be connected both to the actor and the texture. Why is
-  // that? I have no idea. But without that, weird bugs can happen. For
-  // example, when using Dash to Dock, all opened windows will be invisible
-  // *unless they are pinned in the dock*. So yeah, GNOME is magic.
-  connect(actor, 'notify::size', () => {
-    if (actor.metaWindow) {
-      handlers.onSizeChanged(actor);
-    }
+  if (lifecycle.updatesConnected) return;
+
+  lifecycle.state = 'ready';
+  lifecycle.updatesConnected = true;
+  const isLive = () => isCurrent(lifecycle);
+  connectWindow(lifecycle, lifecycle.actor, 'notify::size', () => {
+    dispatchWindowTask(lifecycle, handlers.onSizeChanged);
   });
-  connect(texture, 'size-changed', () => {
-    if (actor.metaWindow) {
-      handlers.onSizeChanged(actor);
-    }
+  connectWindow(lifecycle, texture, 'size-changed', () => {
+    dispatchWindowTask(lifecycle, handlers.onSizeChanged);
+  });
+  connectWindow(lifecycle, lifecycle.window, 'notify::fullscreen', () => {
+    dispatchWindowTask(lifecycle, handlers.onSizeChanged);
+  });
+  connectWindow(lifecycle, lifecycle.window, 'notify::appears-focused', () => {
+    dispatchSyncWindowTask(lifecycle, handlers.onFocusChanged);
+  });
+  connectWindow(lifecycle, lifecycle.window, 'workspace-changed', () => {
+    dispatchSyncWindowTask(lifecycle, handlers.onFocusChanged);
   });
 
-  // Get notified about fullscreen explicitly, since a window must not change in
-  // size to go fullscreen
-  connect(actor.metaWindow, 'notify::fullscreen', () => {
-    if (actor.metaWindow) {
-      handlers.onSizeChanged(actor);
-    }
-  });
-
-  // Window focus changed.
-  connect(actor.metaWindow, 'notify::appears-focused', () => {
-    if (actor.metaWindow) {
-      handlers.onFocusChanged(actor);
-    }
-  });
-
-  // Workspace or monitor of the window changed.
-  connect(actor.metaWindow, 'workspace-changed', () => {
-    if (actor.metaWindow) {
-      handlers.onFocusChanged(actor);
-    }
-  });
-
-  handlers.onAddEffect(actor);
+  dispatchWindowTask(lifecycle, handlers.onAddEffect);
 }
 
-/**
- * Remove the effect from a window.
- *
- * @param actor - The window actor to remove the effect from.
- */
-function removeEffectFrom(actor: Meta.WindowActor) {
-  disconnectAll(actor);
-  disconnectAll(actor.metaWindow);
+/** Run an async handler with a cancellation guard and a rejection boundary. */
+function dispatchWindowTask(
+  lifecycle: WindowLifecycle,
+  handler: (
+    actor: RoundedWindowActor,
+    isCurrent: () => boolean,
+  ) => Promise<void>,
+) {
+  if (!isCurrent(lifecycle)) return;
+  lifecycle.state = 'evaluating';
+  const isLive = () => isCurrent(lifecycle);
 
-  const texture = actor.get_texture();
-  if (texture) {
-    disconnectAll(texture);
+  void Promise.resolve()
+    .then(() => handler(lifecycle.actor, isLive))
+    .then(() => {
+      if (!isLive()) return;
+      lifecycle.state = lifecycle.actor.rwcCustomData ? 'applied' : 'skipped';
+    })
+    .catch(error => {
+      if (!isLive()) return;
+      lifecycle.state = 'ready';
+      logError(`Window handler failed for ${lifecycle.window.wmClass}:`, error);
+    });
+}
+
+function dispatchSyncWindowTask(
+  lifecycle: WindowLifecycle,
+  handler: (actor: RoundedWindowActor, isCurrent: () => boolean) => void,
+) {
+  if (!isCurrent(lifecycle)) return;
+
+  try {
+    handler(lifecycle.actor, () => isCurrent(lifecycle));
+  } catch (error) {
+    logError(
+      `Synchronous window handler failed for ${lifecycle.window.wmClass}:`,
+      error,
+    );
+  }
+}
+
+/** Refresh the windows which are ready in the current activation. */
+function refreshAllWindows() {
+  for (const lifecycle of windowLifecycles.values()) {
+    if (lifecycle.updatesConnected) {
+      dispatchWindowTask(lifecycle, handlers.onSizeChanged);
+    }
+  }
+}
+
+/** Remove effects and all callbacks owned by a window. */
+function closeLifecycle(lifecycle: WindowLifecycle) {
+  if (lifecycle.closed) return;
+
+  lifecycle.closed = true;
+  lifecycle.state = 'closed';
+  windowLifecycles.delete(lifecycle.actor);
+  disconnectConnections(lifecycle.connections);
+  lifecycle.readinessConnections.length = 0;
+
+  try {
+    handlers.onRemoveEffect(lifecycle.actor);
+  } catch (error) {
+    logError(`Could not clean up window ${lifecycle.window.wmClass}:`, error);
+  }
+}
+
+/** Remove an effect when the Shell reports that a window actor is destroyed. */
+function removeEffectFrom(actor: Meta.WindowActor) {
+  const lifecycle = windowLifecycles.get(actor);
+  if (lifecycle) {
+    closeLifecycle(lifecycle);
+    return;
   }
 
-  if (hasMetaWindow(actor)) {
-    handlers.onRemoveEffect(actor);
+  try {
+    handlers.onRemoveEffect(actor as RoundedWindowActor);
+  } catch (error) {
+    logError('Could not remove a window effect:', error);
   }
 }

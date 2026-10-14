@@ -1,6 +1,10 @@
 _build
 *.zip
 node_modules
+dist/
+build/
+*.log
+.env*
 
 package-lock.json
 bun.lock

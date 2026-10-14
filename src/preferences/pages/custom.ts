@@ -21,6 +21,8 @@ import {
   CustomSettingsRowClass,
 } from '../widgets/custom_settings_row.js';
 
+type RowSignalConnection = { object: GObject.Object; id: number };
+
 export const CustomPage = GObject.registerClass(
   {
     Template: GLib.uri_resolve_relative(
@@ -37,6 +39,10 @@ export const CustomPage = GObject.registerClass(
     readonly #customWindowSettings = getPref(
       'custom-rounded-corner-settings',
     );
+    readonly #rowSettingsConnections = new WeakMap<
+      CustomSettingsRowClass,
+      RowSignalConnection[]
+    >();
 
     constructor() {
       super();
@@ -70,6 +76,9 @@ export const CustomPage = GObject.registerClass(
      * @param row - The row to delete.
      */
     #deleteWindowConfig(row: AppRowClass) {
+      if (row instanceof CustomSettingsRowClass) {
+        this.#disconnectRowSettings(row);
+      }
       delete this.#customWindowSettings[row.subtitle];
       setPref(
         'custom-rounded-corner-settings',
@@ -112,6 +121,7 @@ export const CustomPage = GObject.registerClass(
       } else {
         // Otherwise, move the override to the new window.
         const cfg = this.#customWindowSettings[oldWmClass];
+        if (!cfg) return false;
         delete this.#customWindowSettings[oldWmClass];
         this.#customWindowSettings[newWmClass] = cfg;
       }
@@ -136,153 +146,202 @@ export const CustomPage = GObject.registerClass(
         return;
       }
       const r = row as CustomSettingsRowClass;
+      this.#disconnectRowSettings(r);
+      const connections: RowSignalConnection[] = [];
+      const rememberConnection = (object: GObject.Object, id: number) => {
+        connections.push({ object, id });
+      };
 
-      r.connect('notify::subtitle', (row: CustomSettingsRowClass) => {
-        row.checkState();
-      });
+      rememberConnection(
+        r,
+        r.connect('notify::subtitle', (row: CustomSettingsRowClass) => {
+          row.checkState();
+        }),
+      );
       r.enabledRow.set_active(
         this.#customWindowSettings[wmClass].enabled,
       );
-      r.enabledRow.connect('notify::active', (row: Adw.SwitchRow) => {
-        r.checkState();
-        this.#customWindowSettings[wmClass].enabled = row.get_active();
-        setPref(
-          'custom-rounded-corner-settings',
-          this.#customWindowSettings,
-        );
-      });
+      rememberConnection(
+        r.enabledRow,
+        r.enabledRow.connect('notify::active', (row: Adw.SwitchRow) => {
+          r.checkState();
+          this.#customWindowSettings[wmClass].enabled = row.get_active();
+          setPref(
+            'custom-rounded-corner-settings',
+            this.#customWindowSettings,
+          );
+        }),
+      );
 
       const color = new Gdk.RGBA();
       [color.red, color.green, color.blue, color.alpha] =
         this.#customWindowSettings[wmClass].borderColor;
 
       r.borderColorButton.set_rgba(color);
-      r.borderColorButton.connect(
-        'notify::rgba',
-        (_button: Gtk.ColorDialogButton) => {
-          const color = r.borderColorButton.get_rgba();
-          this.#customWindowSettings[wmClass].borderColor = [
-            color.red,
-            color.green,
-            color.blue,
-            color.alpha,
-          ];
-          setPref(
-            'custom-rounded-corner-settings',
-            this.#customWindowSettings,
-          );
-        },
+      rememberConnection(
+        r.borderColorButton,
+        r.borderColorButton.connect(
+          'notify::rgba',
+          (_button: Gtk.ColorDialogButton) => {
+            const color = r.borderColorButton.get_rgba();
+            this.#customWindowSettings[wmClass].borderColor = [
+              color.red,
+              color.green,
+              color.blue,
+              color.alpha,
+            ];
+            setPref(
+              'custom-rounded-corner-settings',
+              this.#customWindowSettings,
+            );
+          },
+        ),
       );
 
       r.cornerRadius.set_value(
         this.#customWindowSettings[wmClass].borderRadius,
       );
-      r.cornerRadius.connect('value-changed', (adj: Gtk.Adjustment) => {
-        this.#customWindowSettings[wmClass].borderRadius =
-          adj.get_value();
-        setPref(
-          'custom-rounded-corner-settings',
-          this.#customWindowSettings,
-        );
-      });
-      r.cornerSmoothing.set_value(
-        this.#customWindowSettings[wmClass].smoothing,
-      );
-      r.cornerSmoothing.connect(
-        'value-changed',
-        (adj: Gtk.Adjustment) => {
-          this.#customWindowSettings[wmClass].smoothing =
+      rememberConnection(
+        r.cornerRadius,
+        r.cornerRadius.connect('value-changed', (adj: Gtk.Adjustment) => {
+          this.#customWindowSettings[wmClass].borderRadius =
             adj.get_value();
           setPref(
             'custom-rounded-corner-settings',
             this.#customWindowSettings,
           );
-        },
+        }),
+      );
+      r.cornerSmoothing.set_value(
+        this.#customWindowSettings[wmClass].smoothing,
+      );
+      rememberConnection(
+        r.cornerSmoothing,
+        r.cornerSmoothing.connect(
+          'value-changed',
+          (adj: Gtk.Adjustment) => {
+            this.#customWindowSettings[wmClass].smoothing =
+              adj.get_value();
+            setPref(
+              'custom-rounded-corner-settings',
+              this.#customWindowSettings,
+            );
+          },
+        ),
       );
       r.keepForMaximized.set_active(
         this.#customWindowSettings[wmClass].keepRoundedCorners
           .maximized,
       );
-      r.keepForMaximized.connect(
-        'notify::active',
-        (row: Adw.SwitchRow) => {
-          this.#customWindowSettings[
-            wmClass
-          ].keepRoundedCorners.maximized = row.get_active();
-          setPref(
-            'custom-rounded-corner-settings',
-            this.#customWindowSettings,
-          );
-        },
+      rememberConnection(
+        r.keepForMaximized,
+        r.keepForMaximized.connect(
+          'notify::active',
+          (row: Adw.SwitchRow) => {
+            this.#customWindowSettings[
+              wmClass
+            ].keepRoundedCorners.maximized = row.get_active();
+            setPref(
+              'custom-rounded-corner-settings',
+              this.#customWindowSettings,
+            );
+          },
+        ),
       );
       r.keepForFullscreen.set_active(
         this.#customWindowSettings[wmClass].keepRoundedCorners
           .fullscreen,
       );
-      r.keepForFullscreen.connect(
-        'notify::active',
-        (row: Adw.SwitchRow) => {
-          this.#customWindowSettings[
-            wmClass
-          ].keepRoundedCorners.fullscreen = row.get_active();
-          setPref(
-            'custom-rounded-corner-settings',
-            this.#customWindowSettings,
-          );
-        },
+      rememberConnection(
+        r.keepForFullscreen,
+        r.keepForFullscreen.connect(
+          'notify::active',
+          (row: Adw.SwitchRow) => {
+            this.#customWindowSettings[
+              wmClass
+            ].keepRoundedCorners.fullscreen = row.get_active();
+            setPref(
+              'custom-rounded-corner-settings',
+              this.#customWindowSettings,
+            );
+          },
+        ),
       );
       r.paddings.paddingTop =
         this.#customWindowSettings[wmClass].padding.top;
-      r.paddings.connect(
-        'notify::padding-top',
-        (row: PaddingsRowClass) => {
-          this.#customWindowSettings[wmClass].padding.top =
-            row.paddingTop;
-          setPref(
-            'custom-rounded-corner-settings',
-            this.#customWindowSettings,
-          );
-        },
+      rememberConnection(
+        r.paddings,
+        r.paddings.connect(
+          'notify::padding-top',
+          (row: PaddingsRowClass) => {
+            this.#customWindowSettings[wmClass].padding.top =
+              row.paddingTop;
+            setPref(
+              'custom-rounded-corner-settings',
+              this.#customWindowSettings,
+            );
+          },
+        ),
       );
       r.paddings.paddingBottom =
         this.#customWindowSettings[wmClass].padding.bottom;
-      r.paddings.connect(
-        'notify::padding-bottom',
-        (row: PaddingsRowClass) => {
-          this.#customWindowSettings[wmClass].padding.bottom =
-            row.paddingBottom;
-          setPref(
-            'custom-rounded-corner-settings',
-            this.#customWindowSettings,
-          );
-        },
+      rememberConnection(
+        r.paddings,
+        r.paddings.connect(
+          'notify::padding-bottom',
+          (row: PaddingsRowClass) => {
+            this.#customWindowSettings[wmClass].padding.bottom =
+              row.paddingBottom;
+            setPref(
+              'custom-rounded-corner-settings',
+              this.#customWindowSettings,
+            );
+          },
+        ),
       );
       r.paddings.paddingStart =
         this.#customWindowSettings[wmClass].padding.left;
-      r.paddings.connect(
-        'notify::padding-start',
-        (row: PaddingsRowClass) => {
-          this.#customWindowSettings[wmClass].padding.left =
-            row.paddingStart;
-          setPref(
-            'custom-rounded-corner-settings',
-            this.#customWindowSettings,
-          );
-        },
+      rememberConnection(
+        r.paddings,
+        r.paddings.connect(
+          'notify::padding-start',
+          (row: PaddingsRowClass) => {
+            this.#customWindowSettings[wmClass].padding.left =
+              row.paddingStart;
+            setPref(
+              'custom-rounded-corner-settings',
+              this.#customWindowSettings,
+            );
+          },
+        ),
       );
       r.paddings.paddingEnd =
         this.#customWindowSettings[wmClass].padding.right;
-      r.paddings.connect(
-        'notify::padding-end',
-        (row: PaddingsRowClass) => {
-          this.#customWindowSettings[wmClass].padding.right =
-            row.paddingEnd;
-          setPref(
-            'custom-rounded-corner-settings',
-            this.#customWindowSettings,
-          );
-        },
+      rememberConnection(
+        r.paddings,
+        r.paddings.connect(
+          'notify::padding-end',
+          (row: PaddingsRowClass) => {
+            this.#customWindowSettings[wmClass].padding.right =
+              row.paddingEnd;
+            setPref(
+              'custom-rounded-corner-settings',
+              this.#customWindowSettings,
+            );
+          },
+        ),
       );
+
+      this.#rowSettingsConnections.set(r, connections);
+    }
+
+    #disconnectRowSettings(row: CustomSettingsRowClass) {
+      for (const { object, id } of this.#rowSettingsConnections.get(row) ?? []) {
+        if (GObject.signal_handler_is_connected(object, id)) {
+          object.disconnect(id);
+        }
+      }
+      this.#rowSettingsConnections.delete(row);
     }
   },
 );
