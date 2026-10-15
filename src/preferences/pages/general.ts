@@ -7,7 +7,6 @@ import type Gtk from 'gi://Gtk';
 import type { PaddingsRowClass } from '../widgets/paddings_row.js';
 
 import Adw from 'gi://Adw';
-import Gdk from 'gi://Gdk';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
@@ -31,10 +30,7 @@ export const GeneralPage = GObject.registerClass(
     InternalChildren: [
       'skipLibadwaita',
       'skipLibhandy',
-      'borderWidth',
-      'borderColor',
       'cornerRadius',
-      'cornerSmoothing',
       'keepShadowForMaximizedFullscreen',
       'keepForMaximized',
       'keepForFullscreen',
@@ -45,10 +41,7 @@ export const GeneralPage = GObject.registerClass(
   class extends Adw.PreferencesPage {
     private declare _skipLibadwaita: Adw.SwitchRow;
     private declare _skipLibhandy: Adw.SwitchRow;
-    private declare _borderWidth: Gtk.Adjustment;
-    private declare _borderColor: Gtk.ColorDialogButton;
     private declare _cornerRadius: Gtk.Adjustment;
-    private declare _cornerSmoothing: Gtk.Adjustment;
     private declare _keepShadowForMaximizedFullscreen: Adw.SwitchRow;
     private declare _keepForMaximized: Adw.SwitchRow;
     private declare _keepForFullscreen: Adw.SwitchRow;
@@ -74,45 +67,11 @@ export const GeneralPage = GObject.registerClass(
         Gio.SettingsBindFlags.DEFAULT,
       );
 
-      bindPref(
-        'border-width',
-        this._borderWidth,
-        'value',
-        Gio.SettingsBindFlags.DEFAULT,
-      );
-
-      const color = new Gdk.RGBA();
-      [color.red, color.green, color.blue, color.alpha] =
-        this.#settings.borderColor;
-      this._borderColor.set_rgba(color);
-      this._borderColor.connect(
-        'notify::rgba',
-        (button: Gtk.ColorDialogButton) => {
-          const color = button.get_rgba();
-          this.#settings.borderColor = [
-            color.red,
-            color.green,
-            color.blue,
-            color.alpha,
-          ];
-          this.#updateGlobalConfig();
-        },
-      );
-
       this._cornerRadius.set_value(this.#settings.borderRadius);
       this._cornerRadius.connect(
         'value-changed',
         (adj: Gtk.Adjustment) => {
           this.#settings.borderRadius = adj.get_value();
-          this.#updateGlobalConfig();
-        },
-      );
-
-      this._cornerSmoothing.set_value(this.#settings.smoothing);
-      this._cornerSmoothing.connect(
-        'value-changed',
-        (adj: Gtk.Adjustment) => {
-          this.#settings.smoothing = adj.get_value();
           this.#updateGlobalConfig();
         },
       );

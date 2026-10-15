@@ -21,7 +21,6 @@ type Schema = {
   whitelist: boolean;
   'skip-libadwaita-app': boolean;
   'skip-libhandy-app': boolean;
-  'border-width': number;
   'global-rounded-corner-settings': RoundedCornerSettings;
   'custom-rounded-corner-settings': CustomRoundedCornerSettings;
   'focused-shadow': BoxShadow;
@@ -40,7 +39,6 @@ export const Schema = {
   whitelist: 'b',
   'skip-libadwaita-app': 'b',
   'skip-libhandy-app': 'b',
-  'border-width': 'i',
   'global-rounded-corner-settings': 'a{sv}',
   'custom-rounded-corner-settings': 'a{sv}',
   'focused-shadow': 'a{si}',
@@ -119,7 +117,7 @@ export function bindPref(
  */
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: The function is inherently a huge if block.
 function resetOutdated(prefs: Gio.Settings) {
-  const lastVersion = 9;
+  const lastVersion = 10;
   const prefsCurrentVersion = prefs
     .get_user_value('settings-version')
     ?.recursiveUnpack() as number | undefined;
@@ -159,6 +157,24 @@ function resetOutdated(prefs: Gio.Settings) {
       }
     }
 
+    if (currentVersion < 10) {
+      // Repack saved profiles to discard properties from the removed renderer.
+      const globalSettings = prefs
+        .get_value('global-rounded-corner-settings')
+        .recursiveUnpack() as RoundedCornerSettings;
+      const customSettings = prefs
+        .get_value('custom-rounded-corner-settings')
+        .recursiveUnpack() as CustomRoundedCornerSettings;
+      prefs.set_value(
+        'global-rounded-corner-settings',
+        packRoundedCornerSettings(globalSettings),
+      );
+      prefs.set_value(
+        'custom-rounded-corner-settings',
+        packCustomRoundedCornerSettings(customSettings),
+      );
+    }
+
     prefs.set_uint('settings-version', lastVersion);
   }
 }
@@ -182,16 +198,12 @@ function packRoundedCornerSettings(settings: RoundedCornerSettings) {
     settings.keepRoundedCorners,
   );
   const borderRadius = GLib.Variant.new_uint32(settings.borderRadius);
-  const smoothing = GLib.Variant.new_double(settings.smoothing);
-  const borderColor = new GLib.Variant('ad', settings.borderColor);
   const enabled = GLib.Variant.new_boolean(settings.enabled);
 
   const variantObject = {
     padding,
     keepRoundedCorners,
     borderRadius,
-    smoothing,
-    borderColor,
     enabled,
   };
 

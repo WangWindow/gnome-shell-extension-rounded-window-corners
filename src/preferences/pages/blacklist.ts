@@ -106,9 +106,7 @@ export const BlacklistPage = GObject.registerClass(
         const win = this.root as unknown as Adw.PreferencesDialog;
         win.add_toast(
           new Adw.Toast({
-            title: _(
-              `Can't add ${newWmClass} to the list, because it already there`,
-            ),
+            title: _('This window class is already in the list'),
           }),
         );
         return false;

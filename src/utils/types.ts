@@ -19,14 +19,12 @@ export type RoundedCornerSettings = {
     fullscreen: boolean;
   };
   borderRadius: number;
-  smoothing: number;
   padding: {
     left: number;
     right: number;
     top: number;
     bottom: number;
   };
-  borderColor: [number, number, number, number];
   enabled: boolean;
 };
 

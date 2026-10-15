@@ -1,46 +1,40 @@
 msgid ""
 msgstr ""
+"Project-Id-Version: Rounded Window Corners\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-04-13 15:46+0200\n"
-"PO-Revision-Date: 2023-03-02 12:35+0000\n"
+"POT-Creation-Date: 2026-10-15 19:43+0800\n"
+"PO-Revision-Date: 2026-10-15 11:00+0800\n"
 "Last-Translator: Yi <yilozt@outlook.com>\n"
 "Language-Team: Chinese (Simplified) <https://hosted.weblate.org/projects/"
 "rounded-window-corners/rounded-window-corners/zh_Hans/>\n"
 "Language: zh_CN\n"
+"MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 "X-Generator: Weblate 4.16.2-dev\n"
 
 #: src/preferences/pages/blacklist.ui:6 src/preferences/pages/blacklist.ui:10
-#, fuzzy
 msgid "Blacklist / Whitelist"
-msgstr "黑名单"
+msgstr "黑名单 / 白名单"
 
 #: src/preferences/pages/blacklist.ui:11
-#, fuzzy
 msgid ""
 "Not all application can works well with rounded corners effects, add them to "
 "this list to disable effects."
-msgstr ""
-"并非所有应用程序在使用圆角效果时都能够良好运行，可以将其添加到黑名单中以关闭"
-"圆角。\n"
-"\n"
-"每一项代表窗口的 WM_CLASS 属性，可以在添加窗口后选取窗口。"
+msgstr "部分应用可能与圆角效果不兼容，可将其添加到此列表以禁用圆角。"
 
 #: src/preferences/pages/blacklist.ui:14
-#, fuzzy
 msgid "Use as Whitelist"
-msgstr "黑名单"
+msgstr "用作白名单"
 
 #: src/preferences/pages/blacklist.ui:15
 msgid ""
 "When selected, instead of omitting certain windows, only allows certain "
 "windows."
-msgstr ""
+msgstr "启用后，仅为列表中的窗口应用圆角效果。"
 
 #: src/preferences/pages/blacklist.ui:25 src/preferences/pages/custom.ui:19
-#, fuzzy
 msgid "Add window"
 msgstr "添加窗口"
 
@@ -49,62 +43,53 @@ msgid "Custom"
 msgstr "自定义"
 
 #: src/preferences/pages/custom.ui:11
-#, fuzzy
 msgid "Set custom effect setting for each window class"
-msgstr "为窗口启用自定义的配置"
+msgstr "为各个窗口类设置自定义圆角效果"
 
 #: src/preferences/pages/edit-shadow.ui:6
 msgid "Edit shadows"
-msgstr ""
+msgstr "编辑阴影"
 
 #: src/preferences/pages/edit-shadow.ui:28
-#, fuzzy
 msgid "Focused window"
 msgstr "已获取焦点的窗口"
 
 #: src/preferences/pages/edit-shadow.ui:43
-#, fuzzy
 msgid "Unfocused window"
 msgstr "未获取焦点的窗口"
 
 #: src/preferences/pages/edit-shadow.ui:66
-#, fuzzy
 msgid "Focused shadow preferences"
-msgstr "重置设置"
+msgstr "聚焦窗口的阴影设置"
 
 #: src/preferences/pages/edit-shadow.ui:69
 #: src/preferences/pages/edit-shadow.ui:209
-#, fuzzy
 msgid "Horizontal offset"
 msgstr "水平偏移"
 
 #: src/preferences/pages/edit-shadow.ui:96
 #: src/preferences/pages/edit-shadow.ui:236
-#, fuzzy
 msgid "Vertical offset"
 msgstr "垂直偏移"
 
 #: src/preferences/pages/edit-shadow.ui:123
 #: src/preferences/pages/edit-shadow.ui:263
-#, fuzzy
 msgid "Blur radius"
-msgstr "圆角半径"
+msgstr "模糊半径"
 
 #: src/preferences/pages/edit-shadow.ui:150
 #: src/preferences/pages/edit-shadow.ui:290
-#, fuzzy
 msgid "Spread radius"
 msgstr "扩散半径"
 
 #: src/preferences/pages/edit-shadow.ui:177
 #: src/preferences/pages/edit-shadow.ui:317
 msgid "Opacity"
-msgstr "透明度"
+msgstr "不透明度"
 
 #: src/preferences/pages/edit-shadow.ui:206
-#, fuzzy
 msgid "Unfocused shadow preferences"
-msgstr "重置设置"
+msgstr "未聚焦窗口的阴影设置"
 
 #: src/preferences/pages/general.ui:6
 msgid "General"
@@ -115,132 +100,99 @@ msgid "Applications"
 msgstr "应用设置"
 
 #: src/preferences/pages/general.ui:11
-#, fuzzy
 msgid ""
 "Some applications created with LibAdwaita or LibHandy already have rounded "
 "corners. You can enable those settings to avoid rounding their corners an "
 "extra time."
 msgstr ""
-"一些使用 LibAdwaita 与 LibHandy 编写的应用已经自带圆角，因此可以通过此选项跳"
-"过"
+"部分使用 LibAdwaita 或 LibHandy 的应用自带圆角。启用以下设置可跳过这些应用，"
+"避免重复应用圆角效果。"
 
 #: src/preferences/pages/general.ui:14
-#, fuzzy
 msgid "Skip LibAdwaita applications"
 msgstr "跳过 LibAdwaita 应用"
 
 #: src/preferences/pages/general.ui:19
-#, fuzzy
 msgid "Skip LibHandy applications"
 msgstr "跳过 LibHandy 应用"
 
 #: src/preferences/pages/general.ui:26
-#, fuzzy
 msgid "Global settings"
 msgstr "全局设置"
 
 #: src/preferences/pages/general.ui:27
-#, fuzzy
 msgid "These settings will have an effect on all windows"
 msgstr "这里的设置将影响所有窗口"
 
 #: src/preferences/pages/general.ui:30
-#, fuzzy
-msgid "Border width"
-msgstr "边框大小"
-
-#: src/preferences/pages/general.ui:57 src/preferences/pages/general.ui:65
 #: src/preferences/widgets/custom_settings_row.ts:20
-#, fuzzy
-msgid "Border color"
-msgstr "边框颜色"
-
-#: src/preferences/pages/general.ui:74
-#: src/preferences/widgets/custom_settings_row.ts:28
-#, fuzzy
 msgid "Corner radius"
 msgstr "圆角半径"
 
-#: src/preferences/pages/general.ui:101
-#: src/preferences/widgets/custom_settings_row.ts:38
-#, fuzzy
-msgid "Corner smoothing"
-msgstr "圆角平滑程度"
-
-#: src/preferences/pages/general.ui:127
-#, fuzzy
+#: src/preferences/pages/general.ui:57
 msgid "Window shadow"
 msgstr "窗口阴影"
 
-#: src/preferences/pages/general.ui:128
+#: src/preferences/pages/general.ui:58
 msgid "Customize the shadow of the rounded corner window"
 msgstr "设置圆角窗口的阴影"
 
-#: src/preferences/pages/general.ui:140
-#, fuzzy
+#: src/preferences/pages/general.ui:70
 msgid "Keep shadows for maximized and fullscreen windows"
-msgstr "窗口全屏时保留圆角"
+msgstr "最大化和全屏时保留阴影"
 
-#: src/preferences/pages/general.ui:145
-#, fuzzy
+#: src/preferences/pages/general.ui:75
 msgid "Keep rounded corners for maximized windows"
 msgstr "最大化时保留圆角"
 
-#: src/preferences/pages/general.ui:150
-#, fuzzy
+#: src/preferences/pages/general.ui:80
 msgid "Keep rounded corners for fullscreen windows"
 msgstr "窗口全屏时保留圆角"
 
-#: src/preferences/pages/general.ui:160
+#: src/preferences/pages/general.ui:90
 msgid "Debug"
 msgstr "调试"
 
-#: src/preferences/pages/general.ui:163
-#, fuzzy
+#: src/preferences/pages/general.ui:93
 msgid "Enable debug logs"
 msgstr "启用日志"
 
-#: src/preferences/pages/general.ui:164
-#, fuzzy
+#: src/preferences/pages/general.ui:94
 msgid ""
 "Run journalctl -o cat -f /usr/bin/gnome-shell in your terminal to see the log"
-msgstr ""
-"可以在终端里运行 <i>journalctl -o cat -f /usr/bin/gnome-shell</i> 来查看日志"
+msgstr "在终端中运行 journalctl -o cat -f /usr/bin/gnome-shell 查看日志"
 
-#: src/preferences/pages/general.ui:173
-#, fuzzy
+#: src/preferences/pages/general.ui:103
 msgid "Reset preferences"
 msgstr "重置设置"
 
 #: src/preferences/pages/reset.ui:6
 msgid "Reset settings"
-msgstr ""
+msgstr "重置设置"
 
 #: src/preferences/pages/reset.ui:16
-#, fuzzy
 msgid "Settings to reset"
 msgstr "选择要重置的设置"
 
 #: src/preferences/pages/reset.ui:22
-#, fuzzy
 msgid "Select all"
 msgstr "全选"
 
 #: src/preferences/pages/reset.ui:39
 msgid "Reset"
-msgstr ""
+msgstr "重置"
 
 #: src/preferences/pages/reset.ui:55
 msgid "Reset these settings?"
-msgstr ""
+msgstr "重置这些设置？"
 
 #: src/preferences/pages/reset.ui:60
 msgid "_Cancel"
-msgstr ""
+msgstr "取消(_C)"
 
 #: src/preferences/pages/reset.ui:61
 msgid "_Reset"
-msgstr ""
+msgstr "重置(_R)"
 
 #: src/preferences/widgets/paddings-row.ui:12
 msgid "Paddings"
@@ -263,125 +215,97 @@ msgid "Right"
 msgstr "右边距"
 
 #: src/preferences/pages/blacklist.ts:62
-#, fuzzy
 msgid "Whitelist"
-msgstr "黑名单"
+msgstr "白名单"
 
 #: src/preferences/pages/blacklist.ts:63
 msgid "Blacklist"
 msgstr "黑名单"
 
+#: src/preferences/pages/blacklist.ts:109 src/preferences/pages/custom.ts:106
+msgid "This window class is already in the list"
+msgstr "此窗口类已在列表中"
+
+#: src/preferences/pages/reset.ts:50
+msgid "Use application list as whitelist"
+msgstr "将应用列表用作白名单"
+
+#: src/preferences/pages/reset.ts:51
+msgid "Application inclusion/exclusion list"
+msgstr "应用包含 / 排除列表"
+
+#: src/preferences/pages/reset.ts:52
+msgid "Custom application appearance"
+msgstr "自定义应用外观"
+
+#: src/preferences/pages/reset.ts:53
+msgid "Skip LibAdwaita Applications"
+msgstr "跳过 LibAdwaita 应用"
+
+#: src/preferences/pages/reset.ts:54
+msgid "Skip LibHandy Applications"
+msgstr "跳过 LibHandy 应用"
+
+#: src/preferences/pages/reset.ts:55
+msgid "Focus Window Shadow Style"
+msgstr "已获取焦点窗口阴影"
+
+#: src/preferences/pages/reset.ts:56
+msgid "Unfocus Window Shadow Style"
+msgstr "未获取焦点窗口阴影"
+
+#: src/preferences/pages/reset.ts:58
+msgid "Keep Window Shadows when Maximized or Fullscreen"
+msgstr "最大化和全屏时保留阴影"
+
+#: src/preferences/pages/reset.ts:59
+msgid "Enable Log"
+msgstr "启用日志"
+
+#: src/preferences/pages/reset.ts:61
+msgid "Enable rounded corners"
+msgstr "启用圆角"
+
+#: src/preferences/pages/reset.ts:62
+msgid "Border Radius"
+msgstr "圆角半径"
+
+#: src/preferences/pages/reset.ts:63
+msgid "Padding"
+msgstr "剪裁边距"
+
+#: src/preferences/pages/reset.ts:65
+msgid "Keep Rounded Corners when Maximized or Fullscreen"
+msgstr "在窗口最大化或全屏时保留圆角"
+
 #: src/preferences/widgets/app_row.ts:34
-#, fuzzy
 msgid "Window class"
-msgstr "窗口阴影"
+msgstr "窗口类"
 
 #: src/preferences/widgets/app_row.ts:55
-#, fuzzy
 msgid "Expand this row, to pick a window"
 msgstr "展开此控件以选取窗口。"
 
 #: src/preferences/widgets/app_row.ts:95
-#, fuzzy
 msgid "Can't pick window from this position"
 msgstr "无法从此位置选取窗口"
 
 #: src/preferences/widgets/custom_settings_row.ts:16
-#, fuzzy
 msgid "Enabled"
 msgstr "启用"
 
-#: src/preferences/widgets/custom_settings_row.ts:48
-#, fuzzy
+#: src/preferences/widgets/custom_settings_row.ts:30
 msgid "Keep rounded corners when maximized"
 msgstr "最大化时保留圆角"
 
-#: src/preferences/widgets/custom_settings_row.ts:50
-#, fuzzy
+#: src/preferences/widgets/custom_settings_row.ts:32
 msgid "Always clip rounded corners even if window is maximized or tiled"
 msgstr "窗口最大化或垂直平铺时保留圆角。"
 
-#: src/preferences/widgets/custom_settings_row.ts:54
-#, fuzzy
+#: src/preferences/widgets/custom_settings_row.ts:36
 msgid "Keep rounded corners when in fullscreen"
 msgstr "窗口全屏时保留圆角"
 
-#: src/preferences/widgets/custom_settings_row.ts:55
-#, fuzzy
+#: src/preferences/widgets/custom_settings_row.ts:37
 msgid "Always clip rounded corners even for fullscreen window"
 msgstr "当窗口全屏时保留圆角效果。"
-
-#~ msgid "Rounded Corners Settings..."
-#~ msgstr "圆角设置…"
-
-#, fuzzy
-#~ msgid "Add a settings entry in right-click menu of the desktop"
-#~ msgstr "将首选项入口添加到桌面背景的右键菜单"
-
-#, fuzzy
-#~ msgid "Open prefereces reset page"
-#~ msgstr "打开重置对话框"
-
-#~ msgid "Skip LibAdwaita Applications"
-#~ msgstr "跳过 LibAdwaita 应用"
-
-#~ msgid "Skip LibHandy Applications"
-#~ msgstr "跳过 LibHandy 应用"
-
-#~ msgid "Focus Window Shadow Style"
-#~ msgstr "已获取焦点窗口阴影"
-
-#~ msgid "Unfocus Window Shadow Style"
-#~ msgstr "未获取焦点窗口阴影"
-
-#~ msgid "Border Width"
-#~ msgstr "边框大小"
-
-#~ msgid "Border Color"
-#~ msgstr "边框颜色"
-
-#~ msgid "Border Radius"
-#~ msgstr "圆角半径"
-
-#~ msgid "Padding"
-#~ msgstr "剪裁边距"
-
-#~ msgid "Keep Rounded Corners when Maximized or Fullscreen"
-#~ msgstr "在窗口最大化或全屏时保留圆角"
-
-#~ msgid "Corner Smoothing"
-#~ msgstr "圆角平滑程度"
-
-#~ msgid "Expand this row to pick a window."
-#~ msgstr "展开此控件以选取窗口。"
-
-#~ msgid ""
-#~ "Setup different clip padding by add window into this list.\n"
-#~ "\n"
-#~ "The item of list is instance part of WM_CLASS property with window. You "
-#~ "can pick a window to add it into this list."
-#~ msgstr ""
-#~ "将窗口添加到此列表可以自定义圆角的裁剪距离。\n"
-#~ "\n"
-#~ "每一项代表窗口的 WM_CLASS 属性，可以在添加窗口后选取窗口。"
-
-#~ msgid "Remove Window from this List"
-#~ msgstr "从列表移除"
-
-#~ msgid "Pick Window to add into list"
-#~ msgstr "选取窗口"
-
-#~ msgid "Apply"
-#~ msgstr "应用"
-
-#~ msgid "Blur Offset"
-#~ msgstr "模糊半径"
-
-#~ msgid "Clip paddings of window"
-#~ msgstr "设置窗口的剪裁距离"
-
-#~ msgid "Can't add to list, because it has exists"
-#~ msgstr "已在列表中，无法添加"
-
-#~ msgid "Edit Shadow for Rounded Corners Windows"
-#~ msgstr "编辑圆角窗口阴影"

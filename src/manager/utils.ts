@@ -86,8 +86,8 @@ export function computeBounds(
   [x, y, width, height]: [number, number, number, number],
 ) {
   const bounds = {
-    x1: x + 1,
-    y1: y + 1,
+    x1: x,
+    y1: y,
     x2: x + actor.width + width,
     y2: y + actor.height + height,
   };
@@ -147,12 +147,8 @@ export function updateShadowActorStyle(
   borderRadius: number,
   shadow: BoxShadow,
   padding: RoundedCornerSettings['padding'],
-  smoothing: number,
 ) {
   const { left, right, top, bottom } = padding;
-
-  // Increase border radius when smoothing is enabled for this profile.
-  const adjustedBorderRadius = borderRadius * (1.0 + smoothing);
 
   actor.style = `padding: ${SHADOW_PADDING}px;`;
 
@@ -164,10 +160,12 @@ export function updateShadowActorStyle(
       win.maximizedVertically ||
       win.fullscreen);
 
+  // St generates the shadow from the rounded silhouette even when its fill is
+  // transparent. An opaque fill leaks through filtered edge texels while moving.
   const newChildStyle = hideShadowForMaximizedFullscreen
     ? 'opacity: 0;'
-    : `background: white;
-               border-radius: ${adjustedBorderRadius}px;
+    : `background: transparent;
+               border-radius: ${borderRadius}px;
                ${boxShadowCss(shadow)};
                margin: ${top}px
                        ${right}px

@@ -31,21 +31,3 @@ export function readRelativeFile(module: string, path: string) {
     const filePath = GLib.filename_from_uri(fileUri)[0];
     return readFile(filePath ?? '');
 }
-
-/**
- * Read a shader file and split it into declarations and main code, as the
- * GNOME shader APIs take those parts separately.
- *
- * @param module - `import.meta.url` of the current module.
- * @param path - File path relative to the current module.
- * @returns A list containing the declarations as the first element and
- *          contents of the main function as the second.
- */
-export async function readShader(module: string, path: string) {
-    const shader = await readRelativeFile(module, path);
-    // biome-ignore lint/performance/useTopLevelRegex: This is only executed at startup
-    let [declarations, code] = shader.split(/^.*?main\(\s?\)\s?/m);
-    declarations = declarations.trim();
-    code = code.trim().replace(/^[{}]/gm, '').trim();
-    return [declarations, code];
-}

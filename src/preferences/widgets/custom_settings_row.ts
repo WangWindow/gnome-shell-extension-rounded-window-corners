@@ -16,14 +16,6 @@ export class CustomSettingsRowClass extends AppRowClass {
     title: _('Enabled'),
   });
 
-  readonly #borderColorRow = new Adw.ActionRow({
-    title: _('Border color'),
-  });
-  borderColorButton = new Gtk.ColorDialogButton({
-    valign: Gtk.Align.CENTER,
-  });
-  borderColorDialog = new Gtk.ColorDialog();
-
   readonly #cornerRadiusRow = new Adw.ActionRow({
     title: _('Corner radius'),
   });
@@ -32,16 +24,6 @@ export class CustomSettingsRowClass extends AppRowClass {
     upper: 40,
     stepIncrement: 1,
     pageIncrement: 1,
-  });
-
-  readonly #cornerSmoothingRow = new Adw.ActionRow({
-    title: _('Corner smoothing'),
-  });
-  cornerSmoothing = new Gtk.Adjustment({
-    lower: 0,
-    upper: 1,
-    stepIncrement: 0.1,
-    pageIncrement: 0.1,
   });
 
   keepForMaximized = new Adw.SwitchRow({
@@ -59,9 +41,6 @@ export class CustomSettingsRowClass extends AppRowClass {
   constructor(cb: AppRowCallbacks) {
     super(cb);
 
-    this.#borderColorRow.add_suffix(this.borderColorButton);
-    this.borderColorButton.set_dialog(this.borderColorDialog);
-
     this.#cornerRadiusRow.add_suffix(
       new Gtk.Scale({
         valign: Gtk.Align.CENTER,
@@ -74,22 +53,8 @@ export class CustomSettingsRowClass extends AppRowClass {
         adjustment: this.cornerRadius,
       }),
     );
-    this.#cornerSmoothingRow.add_suffix(
-      new Gtk.Scale({
-        valign: Gtk.Align.CENTER,
-        hexpand: true,
-        draw_value: true,
-        value_pos: Gtk.PositionType.LEFT,
-        round_digits: 1,
-        orientation: Gtk.Orientation.HORIZONTAL,
-        adjustment: this.cornerSmoothing,
-      }),
-    );
-
     this.add_row(this.enabledRow);
-    this.add_row(this.#borderColorRow);
     this.add_row(this.#cornerRadiusRow);
-    this.add_row(this.#cornerSmoothingRow);
     this.add_row(this.keepForMaximized);
     this.add_row(this.keepForFullscreen);
     this.add_row(this.paddings);
@@ -112,9 +77,7 @@ export class CustomSettingsRowClass extends AppRowClass {
   }
 
   #toggleSensitivity(state: boolean) {
-    this.#borderColorRow.set_sensitive(state);
     this.#cornerRadiusRow.set_sensitive(state);
-    this.#cornerSmoothingRow.set_sensitive(state);
     this.keepForMaximized.set_sensitive(state);
     this.keepForFullscreen.set_sensitive(state);
     this.paddings.set_sensitive(state);

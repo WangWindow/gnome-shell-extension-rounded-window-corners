@@ -376,7 +376,7 @@ function refreshShadow(
     ? getPref('focused-shadow')
     : getPref('unfocused-shadow');
 
-  const { borderRadius, padding, smoothing } = getRoundedCornersCfg(win);
+  const { borderRadius, padding } = getRoundedCornersCfg(win);
 
   updateShadowActorStyle(
     win,
@@ -384,7 +384,6 @@ function refreshShadow(
     borderRadius,
     shadowSettings,
     padding,
-    smoothing,
   );
 }
 
@@ -433,7 +432,7 @@ function refreshRoundedCorners(
 }
 
 /**
- * Update effect uniforms and constraints for a window.
+ * Update effect geometry and constraints for a window.
  *
  * @param actor - The window actor to update the effect for.
  */
@@ -453,7 +452,7 @@ function updateEffect(actor: RoundedWindowActor) {
 
   const cfg = getRoundedCornersCfg(win);
   const windowContentOffset = computeWindowContentsOffset(win);
-  effect.updateUniforms(cfg, computeBounds(actor, windowContentOffset));
+  effect.update(cfg, computeBounds(actor, windowContentOffset));
 
   const shadow = windowInfo.shadow;
   const offsets = computeShadowActorOffset(windowContentOffset);

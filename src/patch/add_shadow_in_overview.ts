@@ -10,14 +10,11 @@ import Graphene from 'gi://Graphene';
 
 import { overview } from 'resource:///org/gnome/shell/ui/main.js';
 
-import { LinearFilterEffect } from '../effect/linear_filter_effect.js';
 import { shouldEnableEffect } from '../manager/utils.js';
 import { OVERVIEW_SHADOW_ACTOR, SHADOW_PADDING } from '../utils/constants.js';
 import { logDebug, logError } from '../utils/log.js';
 
 const overviewShadowClones = new Set<Clutter.Clone>();
-const overviewFilterActors = new Set<Clutter.Actor>();
-const overviewFilterEffect = 'rwc-overview-linear-filter';
 
 /**
  * Add a shadow actor to a window preview in the overview.
@@ -84,18 +81,6 @@ async function addShadowForLiveWindow(
   // windowContainer has the actual contents of the window preview
   const windowContainer = self.windowContainer;
 
-  // Apply linear interpolation to the window preview to make it look
-  // better (there's an upstream GNOME bug causing windows to be blurry,
-  // this makes the effect less noticeable)
-  const filterActor = windowContainer.firstChild;
-  if (filterActor) {
-    filterActor.add_effect_with_name(
-      overviewFilterEffect,
-      new LinearFilterEffect(),
-    );
-    overviewFilterActors.add(filterActor);
-  }
-
   // Create a clone of the window's shadow actor and add it to the preview
   const shadowActorClone = new OverviewShadowActorClone(shadow, self);
   const bindings = [
@@ -106,10 +91,6 @@ async function addShadowForLiveWindow(
   destroyConnection = shadowActorClone.connect('destroy', () => {
     for (const binding of bindings) binding?.unbind();
     overviewShadowClones.delete(shadowActorClone);
-    if (filterActor) {
-      filterActor.remove_effect_by_name(overviewFilterEffect);
-      overviewFilterActors.delete(filterActor);
-    }
     if (GObject.signal_handler_is_connected(shadowActorClone, destroyConnection)) {
       shadowActorClone.disconnect(destroyConnection);
     }
@@ -128,15 +109,6 @@ export function clearOverviewShadowClones() {
       overviewShadowClones.delete(clone);
     }
   }
-
-  for (const actor of overviewFilterActors) {
-    try {
-      actor.remove_effect_by_name(overviewFilterEffect);
-    } catch (error) {
-      logError('Could not remove an overview filter effect:', error);
-    }
-  }
-  overviewFilterActors.clear();
 }
 
 /**

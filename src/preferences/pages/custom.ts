@@ -9,7 +9,6 @@ import type { AppRowCallbacks, AppRowClass } from '../widgets/app_row.js';
 import type { PaddingsRowClass } from '../widgets/paddings_row.js';
 
 import Adw from 'gi://Adw';
-import Gdk from 'gi://Gdk';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 
@@ -104,9 +103,7 @@ export const CustomPage = GObject.registerClass(
         const win = this.root as unknown as Adw.PreferencesDialog;
         win.add_toast(
           new Adw.Toast({
-            title: _(
-              `Can't add ${newWmClass} to the list, because it already there`,
-            ),
+            title: _('This window class is already in the list'),
           }),
         );
         return false;
@@ -173,31 +170,6 @@ export const CustomPage = GObject.registerClass(
         }),
       );
 
-      const color = new Gdk.RGBA();
-      [color.red, color.green, color.blue, color.alpha] =
-        this.#customWindowSettings[wmClass].borderColor;
-
-      r.borderColorButton.set_rgba(color);
-      rememberConnection(
-        r.borderColorButton,
-        r.borderColorButton.connect(
-          'notify::rgba',
-          (_button: Gtk.ColorDialogButton) => {
-            const color = r.borderColorButton.get_rgba();
-            this.#customWindowSettings[wmClass].borderColor = [
-              color.red,
-              color.green,
-              color.blue,
-              color.alpha,
-            ];
-            setPref(
-              'custom-rounded-corner-settings',
-              this.#customWindowSettings,
-            );
-          },
-        ),
-      );
-
       r.cornerRadius.set_value(
         this.#customWindowSettings[wmClass].borderRadius,
       );
@@ -211,23 +183,6 @@ export const CustomPage = GObject.registerClass(
             this.#customWindowSettings,
           );
         }),
-      );
-      r.cornerSmoothing.set_value(
-        this.#customWindowSettings[wmClass].smoothing,
-      );
-      rememberConnection(
-        r.cornerSmoothing,
-        r.cornerSmoothing.connect(
-          'value-changed',
-          (adj: Gtk.Adjustment) => {
-            this.#customWindowSettings[wmClass].smoothing =
-              adj.get_value();
-            setPref(
-              'custom-rounded-corner-settings',
-              this.#customWindowSettings,
-            );
-          },
-        ),
       );
       r.keepForMaximized.set_active(
         this.#customWindowSettings[wmClass].keepRoundedCorners

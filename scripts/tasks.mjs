@@ -86,6 +86,7 @@ function build() {
     const localeDir = join(buildDir, 'locale', 'zh_CN', 'LC_MESSAGES');
     mkdirSync(localeDir, {recursive: true});
     run('msgfmt', [
+        '--check',
         '--output-file',
         join(localeDir, `${uuid}.mo`),
         chineseCatalog,

@@ -47,25 +47,22 @@ export const ResetPage = GObject.registerClass(
 
     // Map prefs to their labels in the UI.
     readonly #resetLabels: { [Key in ResetKey]?: string } = {
-      whitelist: 'Use application list as whitelist',
-      blacklist: 'Application inclusion/exclusion list',
-      'custom-rounded-corner-settings': 'Custom application appearance',
-      'skip-libadwaita-app': 'Skip LibAdwaita Applications',
-      'skip-libhandy-app': 'Skip LibHandy Applications',
-      'focused-shadow': 'Focus Window Shadow Style',
-      'unfocused-shadow': 'Unfocus Window Shadow Style',
+      whitelist: _('Use application list as whitelist'),
+      blacklist: _('Application inclusion/exclusion list'),
+      'custom-rounded-corner-settings': _('Custom application appearance'),
+      'skip-libadwaita-app': _('Skip LibAdwaita Applications'),
+      'skip-libhandy-app': _('Skip LibHandy Applications'),
+      'focused-shadow': _('Focus Window Shadow Style'),
+      'unfocused-shadow': _('Unfocus Window Shadow Style'),
       'keep-shadow-for-maximized-fullscreen':
-        'Keep Window Shadows when Maximized or Fullscreen',
-      'border-width': 'Border Width',
-      'debug-mode': 'Enable Log',
+        _('Keep Window Shadows when Maximized or Fullscreen'),
+      'debug-mode': _('Enable Log'),
 
-      enabled: 'Enable rounded corners',
-      borderRadius: 'Border Radius',
-      borderColor: 'Border Color',
-      padding: 'Padding',
+      enabled: _('Enable rounded corners'),
+      borderRadius: _('Border Radius'),
+      padding: _('Padding'),
       keepRoundedCorners:
-        'Keep Rounded Corners when Maximized or Fullscreen',
-      smoothing: 'Corner Smoothing',
+        _('Keep Rounded Corners when Maximized or Fullscreen'),
     };
 
     constructor() {
@@ -125,7 +122,7 @@ export const ResetPage = GObject.registerClass(
         const row = new Adw.SwitchRow({
           active: false,
           name: key,
-          title: _(label),
+          title: label,
         });
         row.connect('notify::active', source =>
           this.#onToggled(source),
